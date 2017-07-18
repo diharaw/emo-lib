@@ -4,3 +4,9 @@
 [submodule "external/tiny-dnn"]
 	path = external/tiny-dnn
 	url = https://github.com/tiny-dnn/tiny-dnn.git
+[submodule "external/libsndfile"]
+	path = external/libsndfile
+	url = https://github.com/erikd/libsndfile.git
+[submodule "external/LibXtract"]
+	path = external/LibXtract
+	url = https://github.com/jamiebullock/LibXtract.git
