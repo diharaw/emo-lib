@@ -34,3 +34,5 @@
 external/*
 build/*
 projects/*
+
+external/
