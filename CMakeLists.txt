@@ -20,7 +20,8 @@ set(LIBSNDFILE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/libsndfile/src")
 set(LIBXTRACT_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/LibXtract/include/xtract")
 
 # Set includes
-include_directories("${DEEPCL_INCLUDE_PATH}"
+include_directories("${EMO_GPU_INCLUDE_PATH}"
+                    "${DEEPCL_INCLUDE_PATH}"
                     "${TINY_DNN_INCLUDE_PATH}"
                     "${LIBSNDFILE_INCLUDE_PATH}"
                     "${LIBXTRACT_INCLUDE_PATH}")

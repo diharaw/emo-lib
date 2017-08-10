@@ -18,7 +18,9 @@ set(EMO_GPU_HEADERS "${PROJECT_SOURCE_DIR}/include/classifier.hpp"
                     "${PROJECT_SOURCE_DIR}/include/speech_emotion_classifier.hpp"
                     "${PROJECT_SOURCE_DIR}/include/speech_emotion_classifier_cpu.hpp"
                     "${PROJECT_SOURCE_DIR}/include/speech_emotion_classifier_gpu.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/trainer.hpp")
+                    "${PROJECT_SOURCE_DIR}/include/trainer.hpp"
+                    "${PROJECT_SOURCE_DIR}/include/common.hpp"
+                    "${PROJECT_SOURCE_DIR}/include/macros.hpp")
 
 # Sources
 set(EMO_GPU_SOURCES "facial_emotion_classifier.cpp")
