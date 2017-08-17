@@ -10,3 +10,6 @@
 [submodule "external/LibXtract"]
 	path = external/LibXtract
 	url = https://github.com/jamiebullock/LibXtract.git
+[submodule "external/caffe"]
+	path = external/caffe
+	url = https://github.com/BVLC/caffe.git
