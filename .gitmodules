@@ -13,3 +13,4 @@
 [submodule "external/caffe"]
 	path = external/caffe
 	url = https://github.com/BVLC/caffe.git
+	branch = opencl
