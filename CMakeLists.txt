@@ -14,15 +14,13 @@ project("EmoGPU")
 set(EMO_GPU_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/include")
 
 # Setup external include paths
-set(DEEPCL_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/DeepCL/src")
-set(TINY_DNN_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/tiny-dnn/tiny-dnn")
+set(CAFFE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/caffe/include/caffe")
 set(LIBSNDFILE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/libsndfile/src")
 set(LIBXTRACT_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/LibXtract/include/xtract")
 
 # Set includes
 include_directories("${EMO_GPU_INCLUDE_PATH}"
-                    "${DEEPCL_INCLUDE_PATH}"
-                    "${TINY_DNN_INCLUDE_PATH}"
+                    "${CAFFE_INCLUDE_PATH}"
                     "${LIBSNDFILE_INCLUDE_PATH}"
                     "${LIBXTRACT_INCLUDE_PATH}")
 
@@ -30,8 +28,12 @@ include_directories("${EMO_GPU_INCLUDE_PATH}"
 # SUB-DIRECTORIES
 # -----------------------------------------------------------------------------------------------------------------------------                    
 
-add_subdirectory("external/DeepCL")
+# Dependencies
+add_subdirectory("external/caffe")
 add_subdirectory("external/libsndfile")
-add_subdirectory("external/tiny-dnn")
+
+# Library
 add_subdirectory("src")
-add_subdirectory("examples")
+
+# Tools
+add_subdirectory("tools/gui_tool")
