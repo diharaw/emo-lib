@@ -1,3 +1,6 @@
 [submodule "external/libsndfile"]
 	path = external/libsndfile
 	url = https://github.com/erikd/libsndfile.git
+[submodule "external/LibXtract"]
+	path = external/LibXtract
+	url = https://github.com/diharaw/LibXtract.git

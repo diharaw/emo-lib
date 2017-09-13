@@ -16,7 +16,7 @@ set(EMO_GPU_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/include")
 # Setup external include paths
 set(CAFFE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/caffe/include/caffe")
 set(LIBSNDFILE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/libsndfile/src")
-set(LIBXTRACT_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/LibXtract/include/xtract")
+set(LIBXTRACT_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/LibXtract/include")
 
 # Set includes
 include_directories("${EMO_GPU_INCLUDE_PATH}"
@@ -31,6 +31,7 @@ include_directories("${EMO_GPU_INCLUDE_PATH}"
 # Dependencies
 add_subdirectory("external/caffe")
 add_subdirectory("external/libsndfile")
+add_subdirectory("external/LibXtract")
 
 # Library
 add_subdirectory("src")
