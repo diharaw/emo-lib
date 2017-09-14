@@ -1,0 +1,1 @@
+./caffe train --solver=Models/bvlc_alexnet/solver.prototxt

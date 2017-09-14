@@ -35,4 +35,11 @@ external/*
 build/*
 projects/*
 
+bin/
+bin/*
 external/
+external/*
+datasets/
+datasets/*
+weights/
+weights/*

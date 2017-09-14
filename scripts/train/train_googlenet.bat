@@ -1,0 +1,1 @@
+./caffe train --solver=Models/bvlc_googlenet/solver.prototxt --weights=Models/bvlc_googlenet/bvlc_googlenet.caffemodel

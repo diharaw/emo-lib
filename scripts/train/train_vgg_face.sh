@@ -1,0 +1,1 @@
+./caffe train --solver=Models/vgg_face/solver.prototxt --weights=Models/vgg_face/vgg_face.caffemodel
