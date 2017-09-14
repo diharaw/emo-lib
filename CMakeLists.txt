@@ -7,6 +7,13 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project("EmoGPU")
 
 # -----------------------------------------------------------------------------------------------------------------------------
+# OPTIONS
+# -----------------------------------------------------------------------------------------------------------------------------
+
+set(BUILD_GUI_TOOL ON CACHE BOOL "Specify whether the Qt based GUI Tool should be built.")
+set(BUILD_AUDIOSET_CONVERT_TOOL ON CACHE BOOL "Specify whether the audio dataset conversion tool should be built.")
+
+# -----------------------------------------------------------------------------------------------------------------------------
 # INCLUDES
 # -----------------------------------------------------------------------------------------------------------------------------
 
@@ -37,4 +44,11 @@ add_subdirectory("external/LibXtract")
 add_subdirectory("src")
 
 # Tools
-add_subdirectory("tools/gui_tool")
+if(BUILD_GUI_TOOL)
+    # add_subdirectory("tools/gui_tool")
+endif()
+
+if(BUILD_AUDIOSET_CONVERT_TOOL)
+    add_subdirectory("tools/convert_audioset")
+endif()
+
