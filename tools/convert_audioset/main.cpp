@@ -44,37 +44,38 @@ static const char* g_subtypes[] =
     "SF_FORMAT_DOUBLE"
 };
 
-#define BLOCK_SIZE 512
-#define HALF_BLOCK_SIZE BLOCK_SIZE >> 1
+#define HALF_BLOCK_SIZE BLOCK_SIZE / 1
 #define MAVG_COUNT 10
 #define MFCC_FREQ_BANDS 13
 #define MFCC_FREQ_MIN 20
 #define MFCC_FREQ_MAX 20000
 #define SAMPLERATE 48000
+#define BLOCK_SIZE_MAX 512
 
 int main(int argc, const char * argv[])
 {
     double *window = NULL;
     double *window_subframe = NULL;
     double mfccs[MFCC_FREQ_BANDS] = {0};
-    double windowed[BLOCK_SIZE] = {0};
-    double spectrum[BLOCK_SIZE] = {0};
+    double windowed[BLOCK_SIZE_MAX] = {0};
+    double spectrum[BLOCK_SIZE_MAX] = {0};
     double argd[4] = {0};
     
     // Path to dataset root.
-    if(argc != 3)
+    if(argc != 5)
     {
-        std::cout << "usage: convert_imageset <path_to_dataset_root> <label_type>" << std::endl;
+        std::cout << "usage: convert_imageset <path_to_dataset_root> <label_type> <block_size> <show_mfcc>" << std::endl;
         return -1;
     }
     
     std::string dataset_root = std::string(argv[1]);
     int label_type = atoi(argv[2]);
+    uint32_t BLOCK_SIZE = atoi(argv[3]);
+    uint32_t show_mfcc = atoi(argv[4]);
     
     std::string full_path = dataset_root + "/2 - PARTITIONED/train/";
     
     xtract_mel_filter mel_filters;
-    xtract_last_n_state *last_n_state = xtract_last_n_state_new(MAVG_COUNT);
     
     /* Allocate Mel filters */
     mel_filters.n_filters = MFCC_FREQ_BANDS;
@@ -153,12 +154,32 @@ int main(int argc, const char * argv[])
                         /* compute the MFCCs */
                         xtract_mfcc(spectrum, BLOCK_SIZE >> 1, &mel_filters, mfccs);
                         
-//                        std::cout << "Frame : " << i << std::endl;
-//                        for(uint32_t i = 0; i < MFCC_FREQ_BANDS; i++)
-//                        {
-//                            printf ("    MFCC %d        : %f\n", i + 1, mfccs[i]) ;
-//                        }
-//                        std::cout << std::endl;
+                        if(show_mfcc)
+                        {
+                            std::cout << "Frame : " << i << std::endl;
+                            for(uint32_t i = 0; i < MFCC_FREQ_BANDS; i++)
+                            {
+                                printf ("    MFCC %d        : %f\n", i + 1, mfccs[i]) ;
+                            }
+                            
+                            double mean = 0;
+                            double std_dev = 0;
+                            double variance = 0;
+                            double f0 = 0;
+                            
+                            xtract_mean(&mfccs[0], MFCC_FREQ_BANDS, NULL, &mean);
+                            std::cout << "MFCC Mean : " << mean << std::endl;
+                            
+                            xtract_variance(&mfccs[0], MFCC_FREQ_BANDS, &mean, &variance);
+                            xtract_standard_deviation(&mfccs[0], MFCC_FREQ_BANDS, &variance, &std_dev);
+                            std::cout << "MFCC Standard Deviation : " << std_dev << std::endl;
+                            
+                            double sample_rate = file.samplerate();
+                            xtract_f0(&buffer_d[i], BLOCK_SIZE, &sample_rate, &f0);
+                            std::cout << "f0 : " << f0 << std::endl;
+                            
+                            std::cout << std::endl;
+                        }
                     }
                     
                     std::cout << "Window Count : " << frame_count << std::endl;
