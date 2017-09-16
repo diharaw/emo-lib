@@ -11,6 +11,8 @@
 #include <dirent.h>
 #include "mfcc.cpp"
 
+#define DELTA_N 2
+
 static const char* g_emotions_a[] =
 {
     "neutral",
@@ -45,7 +47,61 @@ char* getCmdOption(char **begin, char **end, const std::string &value)
     return nullptr;
 }
 
-int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype)
+void compute_delta(std::vector<v_d>& input, uint32_t n, std::vector<v_d>& output)
+{
+    uint32_t count = input.size();
+    
+    for(uint32_t i = 0; i < count; i++)
+    {
+        uint32_t bands = input[i].size();
+        
+        for(uint32_t j = 0; j < bands; j++)
+        {
+            double numerator = 0;
+            double denominator = 0;
+            
+            for(uint32_t k = 1; k <= n; k++)
+            {
+                int32_t i1 = i + k;
+                int32_t i2 = i - k;
+                
+                if(i1 > (count - 1))
+                    i1 = count - 1;
+                
+                if(i2 < 0)
+                    i2 = 0;
+                
+                numerator += k * (input[i1][j] - input[i2][j]);
+                denominator += pow(k, 2);
+            }
+            
+            output[i].push_back(numerator / (2.0 * denominator));
+        }
+    }
+}
+
+void print_vector(std::vector<v_d>& vec, std::string name)
+{
+    int j = 0;
+    
+    for(auto& frame : vec)
+    {
+        std::cout << "Frame " << j << std::endl;
+        int i = 0;
+        
+        for(auto& coef : frame)
+        {
+            std::cout << name << " " << i << " : " << coef << std::endl;
+            i++;
+        }
+        
+        j++;
+        
+        std::cout << std::endl;
+    }
+}
+
+int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype, int verbose)
 {
     std::string train_path = std::string(dataset) + "/2 - PARTITIONED/train/";
     
@@ -84,6 +140,17 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype)
                     
                     // Extract and write features
                     std::vector<v_d> mfccs = mfccComputer.process_buffer(wavFp);
+                    std::vector<v_d> deltas;
+                    std::vector<v_d> delta_deltas;
+                    
+                    deltas.resize(mfccs.size());
+                    delta_deltas.resize(mfccs.size());
+                    
+                    // Extract delta of MFCC
+                    compute_delta(mfccs, DELTA_N, deltas);
+                    
+                    // Extract delta-delta of MFCC
+                    compute_delta(deltas, DELTA_N, delta_deltas);
                     
                     if(mfccs.size() == 0)
                     {
@@ -93,22 +160,11 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype)
                     
                     std::cout << "Processed File : " << path << std::endl;
                     
-                    int j = 0;
-                    
-                    for(auto& frame : mfccs)
+                    if(verbose)
                     {
-                        std::cout << "Frame " << j << std::endl;
-                        int i = 0;
-                        
-                        for(auto& coef : frame)
-                        {
-                            std::cout << "MFCC " << i << " : " << coef << std::endl;
-                            i++;
-                        }
-                        
-                        j++;
-                        
-                        std::cout << std::endl;
+                        print_vector(mfccs, "MFCC");
+                        print_vector(deltas, "MFCC Delta");
+                        print_vector(delta_deltas, "MFCC Delta-Delta");
                     }
                     
                     wavFp.close();
@@ -133,6 +189,7 @@ int main(int argc, char * argv[])
     USAGE += "--highfreq        : Filterbank high freqency cutoff in Hertz (default=samplingrate/2)\n";
     USAGE += "--dataset         : Path to the root folder of the dataset\n";
     USAGE += "--labeltype       : The label type to use (default=0)\n";
+    USAGE += "--verbose         : Print MFCC output (default=0)\n";
     USAGE += "USAGE EXAMPLES\n";
     USAGE += "./convert_audioset --dataset RAVDESS --labeltype 0 --numcepstra 12 --samplingrate 48000\n";
     USAGE += "./convert_audioset --dataset EMODB --labeltype 1 --numcepstra 12 --samplingrate 16000\n";
@@ -146,6 +203,7 @@ int main(int argc, char * argv[])
     char *high_freq_arg = getCmdOption(argv, argv+argc, "--highfreq");
     char *dataset_arg = getCmdOption(argv, argv+argc, "--dataset");
     char *labeltype_arg = getCmdOption(argv, argv+argc, "--labeltype");
+    char *verbose_arg = getCmdOption(argv, argv+argc, "--verbose");
     
     // Check arguments
     if(argc < 3 || !dataset_arg)
@@ -164,9 +222,10 @@ int main(int argc, char * argv[])
     int low_freq = (low_freq_arg ? atoi(low_freq_arg) : 20);
     int high_freq = (high_freq_arg ? atoi(high_freq_arg) : sampling_rate/2);
     int labeltype = (labeltype_arg ? atoi(labeltype_arg) : 0);
+    int verbose = (verbose_arg ? atoi(verbose_arg) : 0);
     
     // Initialise MFCC class instance
     MFCC mfcc_computer (sampling_rate, num_cepstra, win_length, frame_shift, num_filters, low_freq, high_freq);
     
-    return process_dataset(mfcc_computer, dataset_arg, labeltype);
+    return process_dataset(mfcc_computer, dataset_arg, labeltype, verbose);
 }
