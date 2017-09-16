@@ -1,11 +1,15 @@
+//
+//  main.cpp
+//  audio_feature_extractor
+//
+//  Created by Dihara Wijetunga on 9/16/17.
+//  Copyright © 2017 fidenz. All rights reserved.
+//
+
 #include <iostream>
-#include <string>
+#include <fstream>
 #include <dirent.h>
-#include <sndfile.hh>
-#include <xtract/libxtract.h>
-#include <xtract/xtract_stateful.h>
-#include <xtract/xtract_scalar.h>
-#include <xtract/xtract_helper.h>
+#include "mfcc.cpp"
 
 static const char* g_emotions_a[] =
 {
@@ -33,64 +37,24 @@ static const char** g_label_types[] =
     g_emotions_b
 };
 
-static const char* g_subtypes[] =
+char* getCmdOption(char **begin, char **end, const std::string &value)
 {
-    "SF_FORMAT_PCM_S8",
-    "SF_FORMAT_PCM_16",
-    "SF_FORMAT_PCM_24",
-    "SF_FORMAT_PCM_32",
-    "SF_FORMAT_PCM_U8",
-    "SF_FORMAT_FLOAT",
-    "SF_FORMAT_DOUBLE"
-};
+    char **iter = std::find(begin, end, value);
+    if (iter != end && ++iter != end)
+        return *iter;
+    return nullptr;
+}
 
-#define HALF_BLOCK_SIZE BLOCK_SIZE / 1
-#define MAVG_COUNT 10
-#define MFCC_FREQ_BANDS 13
-#define MFCC_FREQ_MIN 20
-#define MFCC_FREQ_MAX 20000
-#define SAMPLERATE 48000
-#define BLOCK_SIZE_MAX 512
-
-int main(int argc, const char * argv[])
+int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype)
 {
-    double *window = NULL;
-    double *window_subframe = NULL;
-    double mfccs[MFCC_FREQ_BANDS] = {0};
-    double windowed[BLOCK_SIZE_MAX] = {0};
-    double spectrum[BLOCK_SIZE_MAX] = {0};
-    double argd[4] = {0};
-    
-    // Path to dataset root.
-    if(argc != 5)
-    {
-        std::cout << "usage: convert_imageset <path_to_dataset_root> <label_type> <block_size> <show_mfcc>" << std::endl;
-        return -1;
-    }
-    
-    std::string dataset_root = std::string(argv[1]);
-    int label_type = atoi(argv[2]);
-    uint32_t BLOCK_SIZE = atoi(argv[3]);
-    uint32_t show_mfcc = atoi(argv[4]);
-    
-    std::string full_path = dataset_root + "/2 - PARTITIONED/train/";
-    
-    xtract_mel_filter mel_filters;
-    
-    /* Allocate Mel filters */
-    mel_filters.n_filters = MFCC_FREQ_BANDS;
-    mel_filters.filters   = (double **)malloc(MFCC_FREQ_BANDS * sizeof(double *));
-    for(uint8_t k = 0; k < MFCC_FREQ_BANDS; ++k)
-    {
-        mel_filters.filters[k] = (double *)malloc(BLOCK_SIZE * sizeof(double));
-    }
+    std::string train_path = std::string(dataset) + "/2 - PARTITIONED/train/";
     
     for(uint32_t i = 0; i < 6; i++)
     {
-        std::string path_with_emotion = full_path + std::string(g_label_types[label_type][i]);
+        std::string path_with_emotion = train_path + std::string(g_label_types[labeltype][i]);
         
         std::cout << std::endl;
-        std::cout << "Processing Emotion : " << g_label_types[label_type][i] << std::endl;
+        std::cout << "Processing Emotion : " << g_label_types[labeltype][i] << std::endl;
         std::cout << std::endl;
         
         DIR *dir;
@@ -104,111 +68,105 @@ int main(int argc, const char * argv[])
                 
                 if(fileName.length() > 2)
                 {
+                    // Initialise input and output streams
+                    std::ifstream wavFp;
+                    
                     std::string path = path_with_emotion + "/";
                     path += fileName;
                     
-                    SndfileHandle file = SndfileHandle(path);
-                    
-                    std::cout << std::endl;
-                    printf ("    File        : %s\n", fileName.c_str()) ;
-                    printf ("    Sample rate : %d\n", file.samplerate ()) ;
-                    printf ("    Channels    : %d\n", file.channels ()) ;
-                    printf ("    Frames      : %lld\n", file.frames ()) ;
-                    printf ("    Format      : %d\n", (file.format () & SF_FORMAT_TYPEMASK)) ;
-                    printf ("    Subtype     : %s\n", g_subtypes[(file.format () & SF_FORMAT_SUBMASK) - 1]) ;
-                    
-                    file.seek(0, SF_SEEK_SET);
-                    
-                    short* buffer = (short*)malloc(file.frames() * sizeof(short));
-                    file.read(buffer, file.frames());
-                    
-                    double* buffer_d = (double*)malloc(file.frames() * sizeof(double));
-                    
-                    for(uint64_t i = 0; i < file.frames(); i++)
-                        buffer_d[i] = buffer[i];
-                    
-                    int frame_count = 0;
-                    
-                    xtract_init_mfcc(BLOCK_SIZE >> 1, file.samplerate() >> 1, XTRACT_EQUAL_GAIN, MFCC_FREQ_MIN, MFCC_FREQ_MAX, mel_filters.n_filters, mel_filters.filters);
-                    
-                    /* create the window functions */
-                    window = xtract_init_window(BLOCK_SIZE, XTRACT_HANN);
-                    window_subframe = xtract_init_window(HALF_BLOCK_SIZE, XTRACT_HANN);
-                    xtract_init_wavelet_f0_state();
-                    
-                    for(uint64_t i = 0; (i + BLOCK_SIZE) < file.frames(); i += HALF_BLOCK_SIZE) // half overlap
+                    // Check if input is readable
+                    wavFp.open(path);
+                    if (!wavFp.is_open())
                     {
-                        frame_count++;
-                        xtract_windowed(&buffer_d[i], BLOCK_SIZE, window, windowed);
-                        
-                        /* get the spectrum */
-                        argd[0] = SAMPLERATE / (double)BLOCK_SIZE;
-                        argd[1] = XTRACT_MAGNITUDE_SPECTRUM;
-                        argd[2] = 0.f; /* DC component - we expect this to zero for square wave */
-                        argd[3] = 0.f; /* No Normalisation */
-                        
-                        xtract_init_fft(BLOCK_SIZE, XTRACT_SPECTRUM);
-                        xtract[XTRACT_SPECTRUM](windowed, BLOCK_SIZE, &argd[0], spectrum);
-                        xtract_free_fft();
-                        
-                        /* compute the MFCCs */
-                        xtract_mfcc(spectrum, BLOCK_SIZE >> 1, &mel_filters, mfccs);
-                        
-                        if(show_mfcc)
-                        {
-                            std::cout << "Frame : " << i << std::endl;
-                            for(uint32_t i = 0; i < MFCC_FREQ_BANDS; i++)
-                            {
-                                printf ("    MFCC %d        : %f\n", i + 1, mfccs[i]) ;
-                            }
-                            
-                            double mean = 0;
-                            double std_dev = 0;
-                            double variance = 0;
-                            double f0 = 0;
-                            
-                            xtract_mean(&mfccs[0], MFCC_FREQ_BANDS, NULL, &mean);
-                            std::cout << "MFCC Mean : " << mean << std::endl;
-                            
-                            xtract_variance(&mfccs[0], MFCC_FREQ_BANDS, &mean, &variance);
-                            xtract_standard_deviation(&mfccs[0], MFCC_FREQ_BANDS, &variance, &std_dev);
-                            std::cout << "MFCC Standard Deviation : " << std_dev << std::endl;
-                            
-                            double sample_rate = file.samplerate();
-                            xtract_f0(&buffer_d[i], BLOCK_SIZE, &sample_rate, &f0);
-                            std::cout << "f0 : " << f0 << std::endl;
-                            
-                            std::cout << std::endl;
-                        }
+                        std::cerr << "Unable to open input file: " << path << std::endl;
+                        return 1;
                     }
                     
-                    std::cout << "Window Count : " << frame_count << std::endl;
+                    // Extract and write features
+                    std::vector<v_d> mfccs = mfccComputer.process_buffer(wavFp);
                     
-                    xtract_free_window(window);
-                    xtract_free_window(window_subframe);
+                    if(mfccs.size() == 0)
+                    {
+                        std::cerr << "Error processing " << path << std::endl;
+                        return -1;
+                    }
                     
-                    free(buffer);
-                    free(buffer_d);
-//                    return 0;
+                    std::cout << "Processed File : " << path << std::endl;
+                    
+                    int j = 0;
+                    
+                    for(auto& frame : mfccs)
+                    {
+                        std::cout << "Frame " << j << std::endl;
+                        int i = 0;
+                        
+                        for(auto& coef : frame)
+                        {
+                            std::cout << "MFCC " << i << " : " << coef << std::endl;
+                            i++;
+                        }
+                        
+                        j++;
+                        
+                        std::cout << std::endl;
+                    }
+                    
+                    wavFp.close();
                 }
             }
-            
-            closedir (dir);
-        }
-        else
-        {
-            /* could not open directory */
-            perror ("");
-            return EXIT_FAILURE;
         }
     }
-    
-    /* cleanup */
-    for(int n = 0; n < MFCC_FREQ_BANDS; ++n)
-    {
-        free(mel_filters.filters[n]);
-    }
-    free(mel_filters.filters);
     
     return 0;
+}
+
+int main(int argc, char * argv[])
+{
+    std::string USAGE = "convert_audioset : lmdb audio dataset converter\n";
+    USAGE += "OPTIONS\n";
+    USAGE += "--numcepstra      : Number of output cepstra, excluding log-energy (default=12)\n";
+    USAGE += "--numfilters      : Number of Mel warped filters in filterbank (default=40)\n";
+    USAGE += "--samplingrate    : Sampling rate in Hertz (default=16000)\n";
+    USAGE += "--winlength       : Length of analysis window in milliseconds (default=25)\n";
+    USAGE += "--frameshift      : Frame shift in milliseconds (default=10)\n";
+    USAGE += "--lowfreq         : Filterbank low frequency cutoff in Hertz (default=20)\n";
+    USAGE += "--highfreq        : Filterbank high freqency cutoff in Hertz (default=samplingrate/2)\n";
+    USAGE += "--dataset         : Path to the root folder of the dataset\n";
+    USAGE += "--labeltype       : The label type to use (default=0)\n";
+    USAGE += "USAGE EXAMPLES\n";
+    USAGE += "./convert_audioset --dataset RAVDESS --labeltype 0 --numcepstra 12 --samplingrate 48000\n";
+    USAGE += "./convert_audioset --dataset EMODB --labeltype 1 --numcepstra 12 --samplingrate 16000\n";
+    
+    char *num_cepstra_arg = getCmdOption(argv, argv+argc, "--numcepstra");
+    char *num_filters_arg = getCmdOption(argv, argv+argc, "--numfilters");
+    char *sampling_rate_arg = getCmdOption(argv, argv+argc, "--samplingrate");
+    char *win_length_arg = getCmdOption(argv, argv+argc, "--winlength");
+    char *frame_shift_arg = getCmdOption(argv, argv+argc, "--frameshift");
+    char *low_freq_arg = getCmdOption(argv, argv+argc, "--lowfreq");
+    char *high_freq_arg = getCmdOption(argv, argv+argc, "--highfreq");
+    char *dataset_arg = getCmdOption(argv, argv+argc, "--dataset");
+    char *labeltype_arg = getCmdOption(argv, argv+argc, "--labeltype");
+    
+    // Check arguments
+    if(argc < 3 || !dataset_arg)
+    {
+        std::cout << "ERROR: Incorrect arguments.\n";
+        std::cout << USAGE;
+        return 1;
+    }
+    
+    // Assign variables
+    int num_cepstra = (num_cepstra_arg ? atoi(num_cepstra_arg) : 12);
+    int num_filters = (num_filters_arg ? atoi(num_filters_arg) : 40);
+    int sampling_rate = (sampling_rate_arg ? atoi(sampling_rate_arg) : 16000);
+    int win_length = (win_length_arg ? atoi(win_length_arg) : 20);
+    int frame_shift = (frame_shift_arg ? atoi(frame_shift_arg) : 10);
+    int low_freq = (low_freq_arg ? atoi(low_freq_arg) : 20);
+    int high_freq = (high_freq_arg ? atoi(high_freq_arg) : sampling_rate/2);
+    int labeltype = (labeltype_arg ? atoi(labeltype_arg) : 0);
+    
+    // Initialise MFCC class instance
+    MFCC mfcc_computer (sampling_rate, num_cepstra, win_length, frame_shift, num_filters, low_freq, high_freq);
+    
+    return process_dataset(mfcc_computer, dataset_arg, labeltype);
 }
