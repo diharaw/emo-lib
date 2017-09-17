@@ -11,7 +11,33 @@
 #include <dirent.h>
 #include "mfcc.cpp"
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <google/protobuf/text_format.h>
+
+#if defined(USE_LEVELDB) && defined(USE_LMDB)
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
+#include <lmdb.h>
+#endif
+
+#include "boost/scoped_ptr.hpp"
+#include <definitions.hpp>
+#include <util/db.hpp>
+#include <util/format.hpp>
+#include <util/rng.hpp>
+
+#include "caffe/proto/caffe.pb.h"
+
 #define DELTA_N 2
+#define DB_BACKEND "lmdb"
+#define IMAGE_WIDTH 36
+#define IMAGE_HEIGHT 36
+#define IMAGE_CHANNELS 1
+
+using namespace caffe;
+using boost::scoped_ptr;
+using std::string;
 
 static const char* g_emotions_a[] =
 {
@@ -101,9 +127,10 @@ void print_vector(std::vector<v_d>& vec, std::string name)
     }
 }
 
-int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype, int verbose)
+int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath, int labeltype, int verbose, int num_coefs)
 {
     std::string train_path = std::string(dataset) + "/2 - PARTITIONED/train/";
+    std::vector<std::pair<std::string, int> > lines;
     
     for(uint32_t i = 0; i < 6; i++)
     {
@@ -111,7 +138,6 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype, int
         
         std::cout << std::endl;
         std::cout << "Processing Emotion : " << g_label_types[labeltype][i] << std::endl;
-        std::cout << std::endl;
         
         DIR *dir;
         struct dirent *ent;
@@ -124,54 +150,135 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, int labeltype, int
                 
                 if(fileName.length() > 2)
                 {
-                    // Initialise input and output streams
-                    std::ifstream wavFp;
-                    
                     std::string path = path_with_emotion + "/";
                     path += fileName;
                     
-                    // Check if input is readable
-                    wavFp.open(path);
-                    if (!wavFp.is_open())
-                    {
-                        std::cerr << "Unable to open input file: " << path << std::endl;
-                        return 1;
-                    }
+                    // Insert into line vector with label
+                    std::pair<string, int> item;
                     
-                    // Extract and write features
-                    std::vector<v_d> mfccs = mfccComputer.process_buffer(wavFp);
-                    std::vector<v_d> deltas;
-                    std::vector<v_d> delta_deltas;
+                    item.first = path;
+                    item.second = i;
                     
-                    deltas.resize(mfccs.size());
-                    delta_deltas.resize(mfccs.size());
-                    
-                    // Extract delta of MFCC
-                    compute_delta(mfccs, DELTA_N, deltas);
-                    
-                    // Extract delta-delta of MFCC
-                    compute_delta(deltas, DELTA_N, delta_deltas);
-                    
-                    if(mfccs.size() == 0)
-                    {
-                        std::cerr << "Error processing " << path << std::endl;
-                        return -1;
-                    }
-                    
-                    std::cout << "Processed File : " << path << std::endl;
-                    
-                    if(verbose)
-                    {
-                        print_vector(mfccs, "MFCC");
-                        print_vector(deltas, "MFCC Delta");
-                        print_vector(delta_deltas, "MFCC Delta-Delta");
-                    }
-                    
-                    wavFp.close();
+                    lines.push_back(item);
                 }
             }
         }
     }
+    
+    int32_t item_id = 0;
+    
+    scoped_ptr<db::DB> db(db::GetDB(DB_BACKEND));
+    db->Open(dbpath, db::NEW);
+    scoped_ptr<db::Transaction> txn(db->NewTransaction());
+    
+    Datum datum;
+    datum.set_channels(IMAGE_CHANNELS);
+    datum.set_height(IMAGE_HEIGHT);
+    datum.set_width(IMAGE_WIDTH);
+    string value;
+    
+    // Shuffle data
+    shuffle(lines.begin(), lines.end());
+    
+    std::cout << "File count : " << lines.size() << std::endl;
+    
+    // Extract features and write to lmdb
+    for(auto& line : lines)
+    {
+        // Initialise input and output streams
+        std::ifstream wavFp;
+        
+        // Check if input is readable
+        wavFp.open(line.first);
+        if (!wavFp.is_open())
+        {
+            std::cerr << "Unable to open input file: " << line.first << std::endl;
+            return 1;
+        }
+        
+        // Extract and write features
+        std::vector<v_d> mfccs = mfccComputer.process_buffer(wavFp);
+        std::vector<v_d> deltas;
+        std::vector<v_d> delta_deltas;
+        
+        deltas.resize(mfccs.size());
+        delta_deltas.resize(mfccs.size());
+        
+        // Extract delta of MFCC
+        compute_delta(mfccs, DELTA_N, deltas);
+        
+        // Extract delta-delta of MFCC
+        compute_delta(deltas, DELTA_N, delta_deltas);
+        
+        if(mfccs.size() == 0)
+        {
+            std::cerr << "Error processing " << line.first << std::endl;
+            return -1;
+        }
+        
+        std::cout << "Processed File : " << line.first << " | Progress " << item_id << "/" << lines.size() << " files" << std::endl;
+        
+        if(verbose)
+        {
+            print_vector(mfccs, "MFCC");
+            print_vector(deltas, "MFCC Delta");
+            print_vector(delta_deltas, "MFCC Delta-Delta");
+        }
+
+        // Write to Datum
+        for(uint32_t start_idx = 0; (start_idx + IMAGE_WIDTH) < mfccs.size(); start_idx += IMAGE_WIDTH)
+        {
+            // Set emotion label
+            datum.set_label(line.second);
+            
+            string key_str = caffe::format_int(item_id, 8);
+            datum.SerializeToString(&value);
+            google::protobuf::RepeatedField<float>* datumFloatData = datum.mutable_float_data();
+            
+            // For each coefficient
+            for(uint32_t j = 0; j < num_coefs; j++)
+            {
+                // For each frame in Datum
+                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
+                {
+                    datumFloatData->Add(static_cast<float>(mfccs[start_idx + frame_idx][j]));
+                }
+            }
+            
+            // For each coefficient
+            for(uint32_t j = 0; j < num_coefs; j++)
+            {
+                // For each frame in Datum
+                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
+                {
+                    datumFloatData->Add(static_cast<float>(deltas[start_idx + frame_idx][j]));
+                }
+            }
+            
+            // For each coefficient
+            for(uint32_t j = 0; j < num_coefs; j++)
+            {
+                // For each frame in Datum
+                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
+                {
+                    datumFloatData->Add(static_cast<float>(delta_deltas[start_idx + frame_idx][j]));
+                }
+            }
+            
+            txn->Put(key_str, value);
+        }
+        
+        wavFp.close();
+        
+        if (++item_id % 50 == 0)
+            txn->Commit();
+    }
+    
+    if (item_id % 50 != 0)
+        txn->Commit();
+    
+    std::cout << "DONE. Processed " << item_id << " files." << std::endl;
+    db->Close();
     
     return 0;
 }
@@ -183,11 +290,12 @@ int main(int argc, char * argv[])
     USAGE += "--numcepstra      : Number of output cepstra, excluding log-energy (default=12)\n";
     USAGE += "--numfilters      : Number of Mel warped filters in filterbank (default=40)\n";
     USAGE += "--samplingrate    : Sampling rate in Hertz (default=16000)\n";
-    USAGE += "--winlength       : Length of analysis window in milliseconds (default=25)\n";
+    USAGE += "--winlength       : Length of analysis window in milliseconds (default=20)\n";
     USAGE += "--frameshift      : Frame shift in milliseconds (default=10)\n";
     USAGE += "--lowfreq         : Filterbank low frequency cutoff in Hertz (default=20)\n";
     USAGE += "--highfreq        : Filterbank high freqency cutoff in Hertz (default=samplingrate/2)\n";
     USAGE += "--dataset         : Path to the root folder of the dataset\n";
+    USAGE += "--dbpath          : Path to the output database\n";
     USAGE += "--labeltype       : The label type to use (default=0)\n";
     USAGE += "--verbose         : Print MFCC output (default=0)\n";
     USAGE += "USAGE EXAMPLES\n";
@@ -202,11 +310,24 @@ int main(int argc, char * argv[])
     char *low_freq_arg = getCmdOption(argv, argv+argc, "--lowfreq");
     char *high_freq_arg = getCmdOption(argv, argv+argc, "--highfreq");
     char *dataset_arg = getCmdOption(argv, argv+argc, "--dataset");
+    char *dbpath_arg = getCmdOption(argv, argv+argc, "--dbpath");
     char *labeltype_arg = getCmdOption(argv, argv+argc, "--labeltype");
     char *verbose_arg = getCmdOption(argv, argv+argc, "--verbose");
     
+//    const char *num_cepstra_arg = "12";
+//    const char *num_filters_arg = "40";
+//    const char *sampling_rate_arg = "16000";
+//    const char *win_length_arg = "50";
+//    const char *frame_shift_arg = "25";
+//    const char *low_freq_arg = "20";
+//    const char *high_freq_arg = "8000";
+//    const char *dataset_arg = "../../../../datasets/speech/EMODB";
+//    const char *dbpath_arg = "db";
+//    const char *labeltype_arg = "1";
+//    const char *verbose_arg = "0";
+    
     // Check arguments
-    if(argc < 3 || !dataset_arg)
+    if(argc < 3 || !dataset_arg || !dbpath_arg)
     {
         std::cout << "ERROR: Incorrect arguments.\n";
         std::cout << USAGE;
@@ -227,5 +348,5 @@ int main(int argc, char * argv[])
     // Initialise MFCC class instance
     MFCC mfcc_computer (sampling_rate, num_cepstra, win_length, frame_shift, num_filters, low_freq, high_freq);
     
-    return process_dataset(mfcc_computer, dataset_arg, labeltype, verbose);
+    return process_dataset(mfcc_computer, dataset_arg, dbpath_arg, labeltype, verbose, num_cepstra);
 }

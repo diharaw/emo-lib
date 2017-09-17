@@ -13,16 +13,19 @@ endif()
 # -----------------------------------------------------------------------------------------------------------------------------
 
 # Sources
-set(CONVERT_AUDIOSET_SOURCES "main.cpp")
+set(CONVERT_AUDIOSET_SOURCES "main.cpp" "mfcc.cpp")
+
+# Headers
+set(CONVERT_AUDIOSET_HEADERS "wav_header.h")
 
 # Source groups
-source_group("Sources" FILES ${CONVERT_AUDIOSET_SOURCES})
+source_group("Sources" FILES ${CONVERT_AUDIOSET_HEADERS} ${CONVERT_AUDIOSET_SOURCES})
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # TARGETS
 # -----------------------------------------------------------------------------------------------------------------------------
 
-add_executable(convert_audioset ${CONVERT_AUDIOSET_SOURCES})
+add_executable(convert_audioset ${CONVERT_AUDIOSET_HEADERS} ${CONVERT_AUDIOSET_SOURCES})
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # LINKING

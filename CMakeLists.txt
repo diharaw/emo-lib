@@ -14,24 +14,6 @@ set(BUILD_GUI_TOOL ON CACHE BOOL "Specify whether the Qt based GUI Tool should b
 set(BUILD_AUDIOSET_CONVERT_TOOL ON CACHE BOOL "Specify whether the audio dataset conversion tool should be built.")
 
 # -----------------------------------------------------------------------------------------------------------------------------
-# INCLUDES
-# -----------------------------------------------------------------------------------------------------------------------------
-
-# Setup library include paths
-set(EMO_GPU_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/include")
-
-# Setup external include paths
-set(CAFFE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/caffe/include/caffe")
-set(LIBSNDFILE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/libsndfile/src")
-set(LIBXTRACT_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/LibXtract/include")
-
-# Set includes
-include_directories("${EMO_GPU_INCLUDE_PATH}"
-                    "${CAFFE_INCLUDE_PATH}"
-                    "${LIBSNDFILE_INCLUDE_PATH}"
-                    "${LIBXTRACT_INCLUDE_PATH}")
-
-# -----------------------------------------------------------------------------------------------------------------------------
 # SUB-DIRECTORIES
 # -----------------------------------------------------------------------------------------------------------------------------                    
 
@@ -39,6 +21,39 @@ include_directories("${EMO_GPU_INCLUDE_PATH}"
 add_subdirectory("external/caffe")
 add_subdirectory("external/libsndfile")
 add_subdirectory("external/LibXtract")
+
+# -----------------------------------------------------------------------------------------------------------------------------
+# INCLUDES
+# -----------------------------------------------------------------------------------------------------------------------------
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
+include(cmake/Dependencies.cmake)
+
+# Setup library include paths
+set(EMO_GPU_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/include")
+
+# Setup external include paths
+set(CAFFE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/caffe/include/caffe")
+set(CAFFE_INCLUDE_PATH_INTERNAL "${PROJECT_SOURCE_DIR}/external/caffe/include")
+set(CAFFE_INCLUDE_PATH_GENERATED "${PROJECT_SOURCE_DIR}/build/external/caffe/include")
+set(LIBSNDFILE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/libsndfile/src")
+set(LIBXTRACT_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/LibXtract/include")
+
+# Set includes
+include_directories("${EMO_GPU_INCLUDE_PATH}"
+                    "${CAFFE_INCLUDE_PATH}"
+                    "${CAFFE_INCLUDE_PATH_INTERNAL}"
+                    "${CAFFE_INCLUDE_PATH_GENERATED}"
+                    "${LIBSNDFILE_INCLUDE_PATH}"
+                    "${LIBXTRACT_INCLUDE_PATH}"
+                    "${ViennaCL_INCLUDE_DIRS}"
+                    "${LMDB_INCLUDE_DIR}"
+                    "${LevelDB_INCLUDES}"
+                    "${Boost_INCLUDE_DIRS}")
+
+# -----------------------------------------------------------------------------------------------------------------------------
+# PROJECTS
+# ----------------------------------------------------------------------------------------------------------------------------- 
 
 # Library
 add_subdirectory("src")
