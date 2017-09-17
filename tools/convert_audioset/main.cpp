@@ -224,6 +224,8 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
             print_vector(deltas, "MFCC Delta");
             print_vector(delta_deltas, "MFCC Delta-Delta");
         }
+        
+        int subframe = 0;
 
         // Write to Datum
         for(uint32_t start_idx = 0; (start_idx + IMAGE_WIDTH) < mfccs.size(); start_idx += IMAGE_WIDTH)
@@ -231,7 +233,7 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
             // Set emotion label
             datum.set_label(line.second);
             
-            string key_str = caffe::format_int(item_id, 8);
+            string key_str = caffe::format_int(item_id, 8) + "-" + caffe::format_int(subframe, 8);
             datum.SerializeToString(&value);
             google::protobuf::RepeatedField<float>* datumFloatData = datum.mutable_float_data();
             
@@ -266,6 +268,7 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
             }
             
             txn->Put(key_str, value);
+            subframe++;
         }
         
         wavFp.close();
