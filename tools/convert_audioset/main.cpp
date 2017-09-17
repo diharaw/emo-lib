@@ -232,43 +232,49 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
         // Write to Datum
         for(uint32_t start_idx = 0; (start_idx + IMAGE_WIDTH) < mfccs.size(); start_idx += IMAGE_WIDTH)
         {
+            // Clear previous data
+            datum.clear_data();
+            datum.clear_float_data();
+            
             // Set emotion label
             datum.set_label(line.second);
+            datum.set_encoded(false);
+            
+            value.clear();
             
             string key_str = caffe::format_int(item_id, 8) + "-" + caffe::format_int(subframe, 8);
+            
+            // For each coefficient
+            for(uint32_t j = 0; j < num_coefs; j++)
+            {
+                // For each frame in Datum
+                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
+                {
+                    datum.add_float_data(static_cast<float>(mfccs[start_idx + frame_idx][j]));
+                }
+            }
+            
+            // For each coefficient
+            for(uint32_t j = 0; j < num_coefs; j++)
+            {
+                // For each frame in Datum
+                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
+                {
+                    datum.add_float_data(static_cast<float>(deltas[start_idx + frame_idx][j]));
+                }
+            }
+            
+            // For each coefficient
+            for(uint32_t j = 0; j < num_coefs; j++)
+            {
+                // For each frame in Datum
+                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
+                {
+                    datum.add_float_data(static_cast<float>(delta_deltas[start_idx + frame_idx][j]));
+                }
+            }
+            
             datum.SerializeToString(&value);
-            google::protobuf::RepeatedField<float>* datumFloatData = datum.mutable_float_data();
-            
-            // For each coefficient
-            for(uint32_t j = 0; j < num_coefs; j++)
-            {
-                // For each frame in Datum
-                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
-                {
-                    datumFloatData->Add(static_cast<float>(mfccs[start_idx + frame_idx][j]));
-                }
-            }
-            
-            // For each coefficient
-            for(uint32_t j = 0; j < num_coefs; j++)
-            {
-                // For each frame in Datum
-                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
-                {
-                    datumFloatData->Add(static_cast<float>(deltas[start_idx + frame_idx][j]));
-                }
-            }
-            
-            // For each coefficient
-            for(uint32_t j = 0; j < num_coefs; j++)
-            {
-                // For each frame in Datum
-                for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
-                {
-                    datumFloatData->Add(static_cast<float>(delta_deltas[start_idx + frame_idx][j]));
-                }
-            }
-            
             txn->Put(key_str, value);
             subframe++;
             subitems++;
@@ -277,7 +283,10 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
         wavFp.close();
         
         if (++item_id % 50 == 0)
+        {
             txn->Commit();
+            txn.reset(db->NewTransaction());
+        }
     }
     
     if (item_id % 50 != 0)
