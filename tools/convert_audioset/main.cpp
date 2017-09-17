@@ -182,6 +182,8 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
     
     std::cout << "File count : " << lines.size() << std::endl;
     
+    uint32_t subitems = 0;
+    
     // Extract features and write to lmdb
     for(auto& line : lines)
     {
@@ -269,6 +271,7 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
             
             txn->Put(key_str, value);
             subframe++;
+            subitems++;
         }
         
         wavFp.close();
@@ -280,7 +283,7 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath
     if (item_id % 50 != 0)
         txn->Commit();
     
-    std::cout << "DONE. Processed " << item_id << " files." << std::endl;
+    std::cout << "DONE. Processed " << subitems << " items in " << item_id << " files." << std::endl;
     db->Close();
     
     return 0;
