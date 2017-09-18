@@ -86,7 +86,7 @@ void compute_delta(std::vector<v_d>& input, uint32_t n, std::vector<v_d>& output
             double numerator = 0;
             double denominator = 0;
             
-            for(uint32_t k = 1; k <= n; k++)
+            for(int32_t k = 1; k <= n; k++)
             {
                 int32_t i1 = i + k;
                 int32_t i2 = i - k;
