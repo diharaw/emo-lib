@@ -127,9 +127,11 @@ void print_vector(std::vector<v_d>& vec, std::string name)
     }
 }
 
-int process_dataset (MFCC &mfccComputer, const char* dataset, const char* dbpath, int labeltype, int verbose, int num_coefs)
+int process_dataset (MFCC &mfccComputer, const char* dataset, const char* phase, const char* dbpath, int labeltype, int verbose, int num_coefs)
 {
-    std::string train_path = std::string(dataset) + "/2 - PARTITIONED/train/";
+    std::string train_path = std::string(dataset) + "/2 - PARTITIONED/";
+    train_path += phase;
+    train_path += "/";
     std::vector<std::pair<std::string, int> > lines;
     
     for(uint32_t i = 0; i < 6; i++)
@@ -310,12 +312,13 @@ int main(int argc, char * argv[])
     USAGE += "--lowfreq         : Filterbank low frequency cutoff in Hertz (default=20)\n";
     USAGE += "--highfreq        : Filterbank high freqency cutoff in Hertz (default=samplingrate/2)\n";
     USAGE += "--dataset         : Path to the root folder of the dataset\n";
+    USAGE += "--phase           : The phase to which the dataset belongs to (test/train)\n";
     USAGE += "--dbpath          : Path to the output database\n";
     USAGE += "--labeltype       : The label type to use (default=0)\n";
     USAGE += "--verbose         : Print MFCC output (default=0)\n";
     USAGE += "USAGE EXAMPLES\n";
-    USAGE += "./convert_audioset --dataset RAVDESS --labeltype 0 --numcepstra 12 --samplingrate 48000\n";
-    USAGE += "./convert_audioset --dataset EMODB --labeltype 1 --numcepstra 12 --samplingrate 16000\n";
+    USAGE += "./convert_audioset --dataset RAVDESS --labeltype 0 --numcepstra 12 --phase train --samplingrate 48000\n";
+    USAGE += "./convert_audioset --dataset EMODB --labeltype 1 --numcepstra 12 --phase train --samplingrate 16000\n";
     
     char *num_cepstra_arg = getCmdOption(argv, argv+argc, "--numcepstra");
     char *num_filters_arg = getCmdOption(argv, argv+argc, "--numfilters");
@@ -325,6 +328,7 @@ int main(int argc, char * argv[])
     char *low_freq_arg = getCmdOption(argv, argv+argc, "--lowfreq");
     char *high_freq_arg = getCmdOption(argv, argv+argc, "--highfreq");
     char *dataset_arg = getCmdOption(argv, argv+argc, "--dataset");
+    char *phase_arg = getCmdOption(argv, argv+argc, "--phase");
     char *dbpath_arg = getCmdOption(argv, argv+argc, "--dbpath");
     char *labeltype_arg = getCmdOption(argv, argv+argc, "--labeltype");
     char *verbose_arg = getCmdOption(argv, argv+argc, "--verbose");
@@ -342,7 +346,7 @@ int main(int argc, char * argv[])
 //    const char *verbose_arg = "0";
     
     // Check arguments
-    if(argc < 3 || !dataset_arg || !dbpath_arg)
+    if(argc < 3 || !dataset_arg || !dbpath_arg || !phase_arg)
     {
         std::cout << "ERROR: Incorrect arguments.\n";
         std::cout << USAGE;
@@ -363,5 +367,5 @@ int main(int argc, char * argv[])
     // Initialise MFCC class instance
     MFCC mfcc_computer (sampling_rate, num_cepstra, win_length, frame_shift, num_filters, low_freq, high_freq);
     
-    return process_dataset(mfcc_computer, dataset_arg, dbpath_arg, labeltype, verbose, num_cepstra);
+    return process_dataset(mfcc_computer, dataset_arg, phase_arg, dbpath_arg, labeltype, verbose, num_cepstra);
 }
