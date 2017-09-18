@@ -73,6 +73,52 @@ char* getCmdOption(char **begin, char **end, const std::string &value)
     return nullptr;
 }
 
+double find_max(std::vector<v_d>& vec, int i)
+{
+    double max = vec[0][i];
+    
+    for(auto& frame : vec)
+    {
+        if(frame[i] > max)
+            max = frame[i];
+    }
+    
+    return max;
+}
+
+double find_min(std::vector<v_d>& vec, int i)
+{
+    double min = vec[0][i];
+    
+    for(auto& frame : vec)
+    {
+        if(frame[i] < min)
+            min = frame[i];
+    }
+    
+    return min;
+}
+
+void rescale(std::vector<v_d>& vec)
+{
+    if(vec.size() > 0)
+    {
+        int num = vec[0].size();
+        
+        for(uint32_t i = 0; i < num; i++)
+        {
+            double max = find_max(vec, i);
+            double min = find_min(vec, i); // Offset
+            double scale = max - min;
+            
+            for(auto& frame : vec)
+            {
+                frame[i] = (frame[i] - min)/scale;
+            }
+        }
+    }
+}
+
 void compute_delta(std::vector<v_d>& input, uint32_t n, std::vector<v_d>& output)
 {
     uint32_t count = input.size();
@@ -127,7 +173,14 @@ void print_vector(std::vector<v_d>& vec, std::string name)
     }
 }
 
-int process_dataset (MFCC &mfccComputer, const char* dataset, const char* phase, const char* dbpath, int labeltype, int verbose, int num_coefs)
+int process_dataset (MFCC &mfccComputer,
+                     const char* dataset,
+                     const char* phase,
+                     const char* dbpath,
+                     int labeltype,
+                     int verbose,
+                     int num_coefs,
+                     int rescale_val)
 {
     std::string train_path = std::string(dataset) + "/2 - PARTITIONED/";
     train_path += phase;
@@ -202,6 +255,13 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* phase,
         
         // Extract and write features
         std::vector<v_d> mfccs = mfccComputer.process_buffer(wavFp);
+        
+        if(mfccs.size() == 0)
+        {
+            std::cerr << "Error processing " << line.first << std::endl;
+            return -1;
+        }
+        
         std::vector<v_d> deltas;
         std::vector<v_d> delta_deltas;
         
@@ -214,10 +274,11 @@ int process_dataset (MFCC &mfccComputer, const char* dataset, const char* phase,
         // Extract delta-delta of MFCC
         compute_delta(deltas, DELTA_N, delta_deltas);
         
-        if(mfccs.size() == 0)
+        if(rescale_val == 1)
         {
-            std::cerr << "Error processing " << line.first << std::endl;
-            return -1;
+            rescale(mfccs);
+            rescale(deltas);
+            rescale(delta_deltas);
         }
         
         std::cout << "Processed File : " << line.first << " | Progress " << item_id << "/" << lines.size() << " files" << std::endl;
@@ -313,6 +374,7 @@ int main(int argc, char * argv[])
     USAGE += "--highfreq        : Filterbank high freqency cutoff in Hertz (default=samplingrate/2)\n";
     USAGE += "--dataset         : Path to the root folder of the dataset\n";
     USAGE += "--phase           : The phase to which the dataset belongs to (test/train)\n";
+    USAGE += "--rescale         : Rescale each coefficient and its' time derivatives (default=0)\n";
     USAGE += "--dbpath          : Path to the output database\n";
     USAGE += "--labeltype       : The label type to use (default=0)\n";
     USAGE += "--verbose         : Print MFCC output (default=0)\n";
@@ -332,6 +394,7 @@ int main(int argc, char * argv[])
     char *dbpath_arg = getCmdOption(argv, argv+argc, "--dbpath");
     char *labeltype_arg = getCmdOption(argv, argv+argc, "--labeltype");
     char *verbose_arg = getCmdOption(argv, argv+argc, "--verbose");
+    char *rescale_arg = getCmdOption(argv, argv+argc, "--rescale");
     
 //    const char *num_cepstra_arg = "12";
 //    const char *num_filters_arg = "40";
@@ -363,9 +426,10 @@ int main(int argc, char * argv[])
     int high_freq = (high_freq_arg ? atoi(high_freq_arg) : sampling_rate/2);
     int labeltype = (labeltype_arg ? atoi(labeltype_arg) : 0);
     int verbose = (verbose_arg ? atoi(verbose_arg) : 0);
+    int rescale = (rescale_arg ? atoi(rescale_arg) : 0);
     
     // Initialise MFCC class instance
     MFCC mfcc_computer (sampling_rate, num_cepstra, win_length, frame_shift, num_filters, low_freq, high_freq);
     
-    return process_dataset(mfcc_computer, dataset_arg, phase_arg, dbpath_arg, labeltype, verbose, num_cepstra);
+    return process_dataset(mfcc_computer, dataset_arg, phase_arg, dbpath_arg, labeltype, verbose, num_cepstra, rescale);
 }
