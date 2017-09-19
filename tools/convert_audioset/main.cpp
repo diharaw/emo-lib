@@ -39,6 +39,9 @@ using namespace caffe;
 using boost::scoped_ptr;
 using std::string;
 
+double g_max_values[IMAGE_HEIGHT];
+double g_min_values[IMAGE_HEIGHT];
+
 static const char* g_emotions_a[] =
 {
     "neutral",
@@ -107,8 +110,8 @@ void rescale(std::vector<v_d>& vec)
         
         for(uint32_t i = 0; i < num; i++)
         {
-            double max = find_max(vec, i);
-            double min = find_min(vec, i); // Offset
+            double max = g_max_values[i];
+            double min = g_min_values[i]; // Offset
             double scale = max - min;
             
             for(auto& frame : vec)
@@ -171,6 +174,141 @@ void print_vector(std::vector<v_d>& vec, std::string name)
         
         std::cout << std::endl;
     }
+}
+
+void find_min_max_phase(MFCC &mfccComputer, const char* dataset, const char* phase, int labeltype, int num_coefs)
+{
+    std::string train_path = std::string(dataset) + "/2 - PARTITIONED/";
+    train_path += phase;
+    train_path += "/";
+    std::vector<std::pair<std::string, int> > lines;
+    
+    bool first = true;
+    
+    for(uint32_t i = 0; i < 6; i++)
+    {
+        std::string path_with_emotion = train_path + std::string(g_label_types[labeltype][i]);
+        
+        DIR *dir;
+        struct dirent *ent;
+        if ((dir = opendir (path_with_emotion.c_str())) != NULL)
+        {
+            /* print all the files and directories within directory */
+            while ((ent = readdir (dir)) != NULL)
+            {
+                std::string fileName = std::string(ent->d_name);
+                
+                if(fileName.length() > 2)
+                {
+                    std::string path = path_with_emotion + "/";
+                    path += fileName;
+                    
+                    // Initialise input and output streams
+                    std::ifstream wavFp;
+                    
+                    // Check if input is readable
+                    wavFp.open(path);
+                    if (!wavFp.is_open())
+                    {
+                        std::cerr << "Unable to open input file: " << path << std::endl;
+                        return;
+                    }
+                    
+                    // Extract and write features
+                    std::vector<v_d> mfccs = mfccComputer.process_buffer(wavFp);
+                    
+                    if(mfccs.size() == 0)
+                    {
+                        std::cerr << "Error processing " << path << std::endl;
+                        return;
+                    }
+                    
+                    std::vector<v_d> deltas;
+                    std::vector<v_d> delta_deltas;
+                    
+                    deltas.resize(mfccs.size());
+                    delta_deltas.resize(mfccs.size());
+                    
+                    // Extract delta of MFCC
+                    compute_delta(mfccs, DELTA_N, deltas);
+                    
+                    // Extract delta-delta of MFCC
+                    compute_delta(deltas, DELTA_N, delta_deltas);
+                    
+                    // Set initial values
+                    if(first)
+                    {
+                        first = false;
+                        
+                        for(uint32_t j = 0; j < num_coefs; j++)
+                        {
+                            g_max_values[j] = mfccs[0][j];
+                            g_min_values[j] = mfccs[0][j];
+                        }
+                        
+                        for(uint32_t j = 0; j < num_coefs; j++)
+                        {
+                            g_max_values[num_coefs + j] = deltas[0][j];
+                            g_min_values[num_coefs + j] = deltas[0][j];
+                        }
+                        
+                        for(uint32_t j = 0; j < num_coefs; j++)
+                        {
+                            g_max_values[num_coefs * 2 + j] = delta_deltas[0][j];
+                            g_min_values[num_coefs * 2 + j] = delta_deltas[0][j];
+                        }
+                    }
+                    
+                    // MFCC
+                    for(uint32_t f = 0; f < num_coefs; f++)
+                    {
+                        for(uint32_t j = 0; j < mfccs.size(); j++)
+                        {
+                            if(g_max_values[f] < mfccs[j][f])
+                                g_max_values[f] = mfccs[j][f];
+                            
+                            if(g_min_values[f] > mfccs[j][f])
+                                g_min_values[f] = mfccs[j][f];
+                        }
+                    }
+                    
+                    // MFCC Delta
+                    for(uint32_t f = 0; f < num_coefs; f++)
+                    {
+                        for(uint32_t j = 0; j < deltas.size(); j++)
+                        {
+                            if(g_max_values[num_coefs + f] < mfccs[j][f])
+                                g_max_values[num_coefs + f] = mfccs[j][f];
+                            
+                            if(g_min_values[num_coefs + f] > mfccs[j][f])
+                                g_min_values[num_coefs + f] = mfccs[j][f];
+                        }
+                    }
+                    
+                    // MFCC Delta-delta
+                    for(uint32_t f = 0; f < num_coefs; f++)
+                    {
+                        for(uint32_t j = 0; j < delta_deltas.size(); j++)
+                        {
+                            if(g_max_values[num_coefs * 2 + f] < mfccs[j][f])
+                                g_max_values[num_coefs * 2 + f] = mfccs[j][f];
+                            
+                            if(g_min_values[num_coefs * 2 + f] > mfccs[j][f])
+                                g_min_values[num_coefs * 2 + f] = mfccs[j][f];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+void find_min_max(MFCC &mfccComputer, const char* dataset, int labeltype, int num_coefs)
+{
+    find_min_max_phase(mfccComputer, dataset, "train", labeltype, num_coefs);
+    find_min_max_phase(mfccComputer, dataset, "test", labeltype, num_coefs);
+    find_min_max_phase(mfccComputer, dataset, "validate", labeltype, num_coefs);
 }
 
 int process_dataset (MFCC &mfccComputer,
@@ -430,6 +568,9 @@ int main(int argc, char * argv[])
     
     // Initialise MFCC class instance
     MFCC mfcc_computer (sampling_rate, num_cepstra, win_length, frame_shift, num_filters, low_freq, high_freq);
+    
+    if(rescale == 1)
+        find_min_max(mfcc_computer, dataset_arg, num_cepstra, labeltype);
     
     return process_dataset(mfcc_computer, dataset_arg, phase_arg, dbpath_arg, labeltype, verbose, num_cepstra, rescale);
 }
