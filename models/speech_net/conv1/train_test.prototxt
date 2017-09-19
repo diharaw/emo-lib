@@ -1,0 +1,90 @@
+name: "SpeechNetv1"
+layer {
+    name: "data"
+    type: "Data"
+    top: "data"
+    top: "label"
+    include {
+        phase: TRAIN
+    }
+    transform_param {
+        crop_size: 36
+    }
+    data_param {
+        source: "../datasets/speech/EMODB/3 - LMDB/train"
+        batch_size: 64
+        backend: LMDB
+    }
+}
+layer {
+    name: "data"
+    type: "Data"
+    top: "data"
+    top: "label"
+    include {
+        phase: TEST
+    }
+    transform_param {
+        crop_size: 36
+    }
+    data_param {
+        source: "../datasets/speech/EMODB/3 - LMDB/test"
+        batch_size: 100
+        backend: LMDB
+  }
+}
+layer {
+    name: "conv1"
+    type: "Convolution"
+    bottom: "data"
+    top: "conv1"
+    convolution_param {
+        num_output: 64
+        kernel_size: 3
+        stride: 1
+    }
+}
+layer {
+    name: "relu1"
+    type: "ReLU"
+    bottom: "conv1"
+    top: "relu1"
+}
+layer {
+  name: "ip1"
+  type: "InnerProduct"
+  bottom: "relu1"
+  top: "ip1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  inner_product_param {
+    num_output: 6
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "ip1"
+  bottom: "label"
+  top: "accuracy"
+  include {
+    phase: TEST
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "ip1"
+  bottom: "label"
+  top: "loss"
+}

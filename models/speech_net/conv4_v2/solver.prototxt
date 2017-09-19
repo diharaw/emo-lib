@@ -1,7 +1,7 @@
 net: "../models/speech_net/conv4/train_test.prototxt"
 test_iter: 1000
 test_interval: 1000
-base_lr: 0.001
+base_lr: 0.01
 lr_policy: "inv"
 gamma: 0.0001
 power: 0.75

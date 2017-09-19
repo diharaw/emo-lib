@@ -162,12 +162,11 @@ void print_vector(std::vector<v_d>& vec, std::string name)
     for(auto& frame : vec)
     {
         std::cout << "Frame " << j << std::endl;
-        int i = 0;
         
-        for(auto& coef : frame)
+        
+        for(int i = 1; i < frame.size(); i++)
         {
-            std::cout << name << " " << i << " : " << coef << std::endl;
-            i++;
+            std::cout << name << " " << i << " : " << frame[i] << std::endl;
         }
         
         j++;
@@ -181,7 +180,6 @@ void find_min_max_phase(MFCC &mfccComputer, const char* dataset, const char* pha
     std::string train_path = std::string(dataset) + "/2 - PARTITIONED/";
     train_path += phase;
     train_path += "/";
-    std::vector<std::pair<std::string, int> > lines;
     
     bool first = true;
     
@@ -309,6 +307,12 @@ void find_min_max(MFCC &mfccComputer, const char* dataset, int labeltype, int nu
     find_min_max_phase(mfccComputer, dataset, "train", labeltype, num_coefs);
     find_min_max_phase(mfccComputer, dataset, "test", labeltype, num_coefs);
     find_min_max_phase(mfccComputer, dataset, "validate", labeltype, num_coefs);
+    
+    for(uint32_t i = 0; i < IMAGE_HEIGHT; i++)
+        std::cout << "Max Values : " << i << " : " << g_max_values[i] << std::endl;
+    
+    for(uint32_t i = 0; i < IMAGE_HEIGHT; i++)
+        std::cout << "Min Values : " << i << " : " << g_min_values[i] << std::endl;
 }
 
 int process_dataset (MFCC &mfccComputer,
@@ -446,7 +450,7 @@ int process_dataset (MFCC &mfccComputer,
             string key_str = caffe::format_int(item_id, 8) + "-" + caffe::format_int(subframe, 8);
             
             // For each coefficient
-            for(uint32_t j = 0; j < num_coefs; j++)
+            for(uint32_t j = 1; j < (num_coefs + 1); j++)
             {
                 // For each frame in Datum
                 for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
@@ -456,7 +460,7 @@ int process_dataset (MFCC &mfccComputer,
             }
             
             // For each coefficient
-            for(uint32_t j = 0; j < num_coefs; j++)
+            for(uint32_t j = 1; j < (num_coefs + 1); j++)
             {
                 // For each frame in Datum
                 for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
@@ -466,7 +470,7 @@ int process_dataset (MFCC &mfccComputer,
             }
             
             // For each coefficient
-            for(uint32_t j = 0; j < num_coefs; j++)
+            for(uint32_t j = 1; j < (num_coefs + 1); j++)
             {
                 // For each frame in Datum
                 for(uint32_t frame_idx = 0; frame_idx < IMAGE_WIDTH; frame_idx++)
@@ -537,14 +541,16 @@ int main(int argc, char * argv[])
 //    const char *num_cepstra_arg = "12";
 //    const char *num_filters_arg = "40";
 //    const char *sampling_rate_arg = "16000";
-//    const char *win_length_arg = "50";
-//    const char *frame_shift_arg = "25";
-//    const char *low_freq_arg = "20";
+//    const char *win_length_arg = "40";
+//    const char *frame_shift_arg = "20";
+//    const char *low_freq_arg = "300";
 //    const char *high_freq_arg = "8000";
 //    const char *dataset_arg = "../../../../datasets/speech/EMODB";
 //    const char *dbpath_arg = "db";
 //    const char *labeltype_arg = "1";
 //    const char *verbose_arg = "0";
+//    const char *rescale_arg = "1";
+//    const char *phase_arg = "train";
     
     // Check arguments
     if(argc < 3 || !dataset_arg || !dbpath_arg || !phase_arg)
@@ -557,7 +563,7 @@ int main(int argc, char * argv[])
     // Assign variables
     int num_cepstra = (num_cepstra_arg ? atoi(num_cepstra_arg) : 12);
     int num_filters = (num_filters_arg ? atoi(num_filters_arg) : 40);
-    int sampling_rate = (sampling_rate_arg ? atoi(sampling_rate_arg) : 16000);
+    int sampling_rate = (sampling_rate_arg ? atoi(sampling_rate_arg) : 48000);
     int win_length = (win_length_arg ? atoi(win_length_arg) : 20);
     int frame_shift = (frame_shift_arg ? atoi(frame_shift_arg) : 10);
     int low_freq = (low_freq_arg ? atoi(low_freq_arg) : 20);
@@ -570,7 +576,7 @@ int main(int argc, char * argv[])
     MFCC mfcc_computer (sampling_rate, num_cepstra, win_length, frame_shift, num_filters, low_freq, high_freq);
     
     if(rescale == 1)
-        find_min_max(mfcc_computer, dataset_arg, num_cepstra, labeltype);
+        find_min_max(mfcc_computer, dataset_arg, labeltype, num_cepstra);
     
     return process_dataset(mfcc_computer, dataset_arg, phase_arg, dbpath_arg, labeltype, verbose, num_cepstra, rescale);
 }

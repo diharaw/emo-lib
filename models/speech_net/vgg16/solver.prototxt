@@ -1,4 +1,4 @@
-net: "../models/speech_net/conv4/train_test.prototxt"
+net: "../models/speech_net/vgg16/train_test.prototxt"
 test_iter: 1000
 test_interval: 1000
 base_lr: 0.001
@@ -11,5 +11,5 @@ momentum: 0.9
 display: 100
 weight_decay: 0.0005
 snapshot: 1000
-snapshot_prefix: "../models/speech_net/conv4/train_test.prototxt"
+snapshot_prefix: "../models/speech_net/vgg16/train_test.prototxt"
 solver_mode: CPU

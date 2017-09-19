@@ -7,9 +7,6 @@ layer {
     include {
         phase: TRAIN
     }
-    transform_param {
-        crop_size: 36
-    }
     data_param {
         source: "../datasets/speech/EMODB/3 - LMDB/train"
         batch_size: 16
@@ -24,9 +21,6 @@ layer {
     include {
         phase: TEST
     }
-    transform_param {
-        crop_size: 36
-    }
     data_param {
         source: "../datasets/speech/EMODB/3 - LMDB/test"
         batch_size: 1
@@ -38,22 +32,11 @@ layer {
     type: "Convolution"
     bottom: "data"
     top: "conv1"
-    param {
-        lr_mult: 1
-    }
-    param {
-        lr_mult: 2
-    }
     convolution_param {
-        num_output: 64
+        num_output: 128
         kernel_size: 3
         stride: 1
-        weight_filler {
-            type: "xavier"
-        }
-        bias_filler {
-            type: "constant"
-        }
+        pad: 1
     }
 }
 layer {
@@ -67,22 +50,11 @@ layer {
     type: "Convolution"
     bottom: "relu1"
     top: "conv2"
-    param {
-        lr_mult: 1
-    }
-    param {
-        lr_mult: 2
-    }
     convolution_param {
-        num_output: 128
+        num_output: 256
         kernel_size: 3
         stride: 1
-        weight_filler {
-            type: "xavier"
-        }
-        bias_filler {
-            type: "constant"
-        }
+        pad: 1
     }
 }
 layer {
@@ -107,22 +79,11 @@ layer {
     type: "Convolution"
     bottom: "pool1"
     top: "conv3"
-    param {
-        lr_mult: 1
-    }
-    param {
-        lr_mult: 2
-    }
     convolution_param {
-        num_output: 256
+        num_output: 512
         kernel_size: 3
         stride: 1
-        weight_filler {
-            type: "xavier"
-        }
-        bias_filler {
-            type: "constant"
-        }
+        pad: 1
     }
 }
 layer {
@@ -136,22 +97,11 @@ layer {
     type: "Convolution"
     bottom: "relu3"
     top: "conv4"
-    param {
-        lr_mult: 1
-    }
-    param {
-        lr_mult: 2
-    }
     convolution_param {
-        num_output: 512
+        num_output: 1024
         kernel_size: 3
         stride: 1
-        weight_filler {
-            type: "xavier"
-        }
-        bias_filler {
-            type: "constant"
-        }
+        pad: 1
     }
 }
 layer {
@@ -177,7 +127,7 @@ layer {
   bottom: "pool2"
   top: "drop1"
   dropout_param {
-    dropout_ratio: 0.2
+    dropout_ratio: 0.5
   }
 }
 layer {
