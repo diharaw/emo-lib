@@ -43,3 +43,5 @@ datasets/
 datasets/*
 weights/
 weights/*
+tools/gui_tool/
+tools/gui_tool/*

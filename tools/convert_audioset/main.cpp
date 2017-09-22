@@ -177,7 +177,7 @@ void print_vector(std::vector<v_d>& vec, std::string name)
 
 void find_min_max_phase(MFCC &mfccComputer, const char* dataset, const char* phase, int labeltype, int num_coefs)
 {
-    std::string train_path = std::string(dataset) + "/2 - PARTITIONED/";
+    std::string train_path = std::string(dataset) + "/3 - TRIMMED/";
     train_path += phase;
     train_path += "/";
     
@@ -324,7 +324,7 @@ int process_dataset (MFCC &mfccComputer,
                      int num_coefs,
                      int rescale_val)
 {
-    std::string train_path = std::string(dataset) + "/2 - PARTITIONED/";
+    std::string train_path = std::string(dataset) + "/3 - TRIMMED/";
     train_path += phase;
     train_path += "/";
     std::vector<std::pair<std::string, int> > lines;

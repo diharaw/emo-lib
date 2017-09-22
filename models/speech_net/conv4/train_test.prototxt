@@ -11,7 +11,7 @@ layer {
         crop_size: 36
     }
     data_param {
-        source: "../datasets/speech/EMODB/3 - LMDB/train"
+        source: "../datasets/speech/RAVDESS/4 - LMDB/train"
         batch_size: 16
         backend: LMDB
     }
@@ -28,7 +28,7 @@ layer {
         crop_size: 36
     }
     data_param {
-        source: "../datasets/speech/EMODB/3 - LMDB/test"
+        source: "../datasets/speech/RAVDESS/4 - LMDB/test"
         batch_size: 1
         backend: LMDB
   }
