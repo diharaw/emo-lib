@@ -9,6 +9,11 @@
 #include <QtCharts/QChart>
 #include <QtWidgets/QVBoxLayout>
 #include <QtCharts/QValueAxis>
+#include <QFileDialog>
+#include <QImageReader>
+#include <QImageWriter>
+#include <QStandardPaths>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -55,6 +60,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    m_camera->stop();
+    m_device->close();
+    m_audioInput->stop();
     delete ui;
 }
 
@@ -97,10 +105,10 @@ void MainWindow::setupAudioPage()
     QAudioFormat formatAudio;
     formatAudio.setSampleRate(16000);
     formatAudio.setChannelCount(1);
-    formatAudio.setSampleSize(8);
+    formatAudio.setSampleSize(16);
     formatAudio.setCodec("audio/pcm");
     formatAudio.setByteOrder(QAudioFormat::LittleEndian);
-    formatAudio.setSampleType(QAudioFormat::UnSignedInt);
+    formatAudio.setSampleType(QAudioFormat::SignedInt);
 
     QAudioDeviceInfo inputDevices = QAudioDeviceInfo::defaultInputDevice();
     m_audioInput = new QAudioInput(inputDevices,formatAudio, this);
@@ -110,9 +118,8 @@ void MainWindow::setupAudioPage()
 
 void MainWindow::setupImagePage()
 {
-    m_camera->stop();
-    m_device->close();
-    m_audioInput->stop();
+//    ui->m_selectedImageLabel->setBackgroundRole(QPalette::Base);
+
 }
 
 void MainWindow::setupVideoPage()
@@ -120,11 +127,20 @@ void MainWindow::setupVideoPage()
 
 }
 
+void MainWindow::selectImagePage()
+{
+    m_camera->stop();
+    m_device->close();
+    m_audioInput->stop();
+    ui->m_pageStack->setCurrentIndex(2);
+}
+
 void MainWindow::selectMicAudioPage()
 {
     m_camera->stop();
     m_device->open(QIODevice::WriteOnly);
     m_audioInput->start(m_device);
+    ui->m_pageStack->setCurrentIndex(1);
 }
 
 void MainWindow::selectCameraPage()
@@ -132,6 +148,7 @@ void MainWindow::selectCameraPage()
     m_device->close();
     m_audioInput->stop();
     m_camera->start();
+    ui->m_pageStack->setCurrentIndex(0);
 }
 
 void MainWindow::on_m_cmbClassifier_currentIndexChanged(int index)
@@ -156,11 +173,10 @@ void MainWindow::choosePage()
             if(inputIndex == 0) // Webcam/Mic
             {
                 selectCameraPage();
-                ui->m_pageStack->setCurrentIndex(0);
             }
             else if(inputIndex == 1) // Files
             {
-
+                selectImagePage();
             }
             break;
         }
@@ -169,7 +185,6 @@ void MainWindow::choosePage()
             if(inputIndex == 0) // Webcam/Mic
             {
                 selectMicAudioPage();
-                ui->m_pageStack->setCurrentIndex(1);
             }
             else if(inputIndex == 1) // Files
             {
@@ -182,7 +197,6 @@ void MainWindow::choosePage()
             if(inputIndex == 0) // Webcam/Mic
             {
                 selectCameraPage();
-                ui->m_pageStack->setCurrentIndex(0);
             }
             else if(inputIndex == 1) // Files
             {
@@ -193,4 +207,60 @@ void MainWindow::choosePage()
         default:
             break;
     }
+}
+
+static void initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMode acceptMode)
+{
+    static bool firstDialog = true;
+
+    if (firstDialog) {
+        firstDialog = false;
+        const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+        dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
+    }
+
+    QStringList mimeTypeFilters;
+    const QByteArrayList supportedMimeTypes = acceptMode == QFileDialog::AcceptOpen
+        ? QImageReader::supportedMimeTypes() : QImageWriter::supportedMimeTypes();
+    foreach (const QByteArray &mimeTypeName, supportedMimeTypes)
+        mimeTypeFilters.append(mimeTypeName);
+    mimeTypeFilters.sort();
+    dialog.setMimeTypeFilters(mimeTypeFilters);
+    dialog.selectMimeTypeFilter("image/jpeg");
+    if (acceptMode == QFileDialog::AcceptSave)
+        dialog.setDefaultSuffix("jpg");
+}
+
+bool MainWindow::loadImage(const QString &fileName)
+{
+    QImageReader reader(fileName);
+    reader.setAutoTransform(true);
+    const QImage newImage = reader.read();
+    if (newImage.isNull()) {
+        QMessageBox::information(this, QGuiApplication::applicationDisplayName(),
+                                 tr("Cannot load %1: %2")
+                                 .arg(QDir::toNativeSeparators(fileName), reader.errorString()));
+        return false;
+    }
+
+    m_selectedImage = newImage.scaled(ui->m_image_page->size() * devicePixelRatio(), Qt::AspectRatioMode::KeepAspectRatio, Qt::SmoothTransformation);
+    m_cachedPixmap = QPixmap::fromImage(m_selectedImage);
+    m_cachedPixmap.setDevicePixelRatio(devicePixelRatio());
+
+    ui->m_selectedImageLabel->setPixmap(m_cachedPixmap);
+
+    return true;
+}
+
+void MainWindow::openImage()
+{
+    QFileDialog dialog(this, tr("Open File"));
+    initializeImageFileDialog(dialog, QFileDialog::AcceptOpen);
+
+    while (dialog.exec() == QDialog::Accepted && !loadImage(dialog.selectedFiles().first())) {}
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    openImage();
 }

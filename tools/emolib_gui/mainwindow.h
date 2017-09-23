@@ -10,6 +10,7 @@
 #include <QCamera>
 #include <QElapsedTimer>
 #include <QtCharts/QChartGlobal>
+#include <QLabel>
 
 QT_CHARTS_BEGIN_NAMESPACE
 class QLineSeries;
@@ -43,15 +44,20 @@ private slots:
 
     void on_m_cmbInput_currentIndexChanged(int index);
 
+    void on_pushButton_clicked();
+
 private:
     void setupCameraPage();
     void setupAudioPage();
     void setupImagePage();
     void setupVideoPage();
 
+    void selectImagePage();
     void selectMicAudioPage();
     void selectCameraPage();
     void choosePage();
+    void openImage();
+    bool loadImage(const QString &);
 
 private:
     Ui::MainWindow*   ui;
@@ -60,6 +66,8 @@ private:
     QChart*           m_audio_chart;
     QMediaRecorder*   m_mediaRecorder;
     QCamera*          m_camera;
+    QImage            m_selectedImage;
+    QPixmap           m_cachedPixmap;
     QStringList       m_categories;
     QStringList       m_classifierTypes;
     QStringList       m_inputTypes;

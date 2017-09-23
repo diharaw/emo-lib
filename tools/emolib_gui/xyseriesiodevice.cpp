@@ -29,6 +29,7 @@
 
 #include "xyseriesiodevice.h"
 #include <QtCharts/QXYSeries>
+#include <QDebug>
 
 XYSeriesIODevice::XYSeriesIODevice(QXYSeries * series, QObject *parent) :
     QIODevice(parent),
@@ -49,17 +50,22 @@ qint64 XYSeriesIODevice::writeData(const char * data, qint64 maxSize)
     QVector<QPointF> oldPoints = m_series->pointsVector();
     QVector<QPointF> points;
     int resolution = 4;
+    qint64 size16 = maxSize/sizeof(qint16);
 
     if (oldPoints.count() < range) {
         points = m_series->pointsVector();
     } else {
-        for (int i = maxSize/resolution; i < oldPoints.count(); i++)
-            points.append(QPointF(i - maxSize/resolution, oldPoints.at(i).y()));
+        for (int i = size16/resolution; i < oldPoints.count(); i++)
+            points.append(QPointF(i - size16/resolution, oldPoints.at(i).y()));
     }
 
+    qint16* pcmData = (qint16*)data;
     qint64 size = points.count();
-    for (int k = 0; k < maxSize/resolution; k++)
-        points.append(QPointF(k + size, ((quint8)data[resolution * k] - 128)/128.0));
+    for (int k = 0; k < size16/resolution; k++)
+    {
+        qDebug("Data : %f", ((float)pcmData[resolution * k])/(float)32767);
+        points.append(QPointF(k + size, ((float)pcmData[resolution * k])/(float)32767));
+    }
 
     m_series->replace(points);
     return maxSize;

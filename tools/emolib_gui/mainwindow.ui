@@ -144,7 +144,7 @@
           <item>
            <widget class="QStackedWidget" name="m_pageStack">
             <property name="currentIndex">
-             <number>1</number>
+             <number>2</number>
             </property>
             <widget class="QWidget" name="page">
              <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -166,6 +166,20 @@
              </layout>
             </widget>
             <widget class="QWidget" name="m_audio_page"/>
+            <widget class="QWidget" name="m_image_page">
+             <layout class="QHBoxLayout" name="horizontalLayout_3">
+              <item>
+               <widget class="QLabel" name="m_selectedImageLabel">
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
            </widget>
           </item>
          </layout>
