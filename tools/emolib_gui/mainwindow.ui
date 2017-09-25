@@ -87,30 +87,37 @@
            <widget class="QComboBox" name="m_cmbInput"/>
           </item>
           <item row="2" column="1">
-           <widget class="QPushButton" name="pushButton">
+           <widget class="QPushButton" name="m_btnBrowse">
             <property name="text">
              <string>Browse</string>
             </property>
            </widget>
           </item>
           <item row="2" column="0">
-           <widget class="QLabel" name="label_2">
+           <widget class="QLabel" name="m_lblFile">
             <property name="text">
              <string>File</string>
             </property>
            </widget>
           </item>
           <item row="3" column="1">
-           <widget class="QCheckBox" name="checkBox">
+           <widget class="QCheckBox" name="m_trimChk">
             <property name="text">
              <string>Trim</string>
             </property>
            </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QPushButton" name="pushButton_2">
+           <widget class="QPushButton" name="m_btnClassify">
             <property name="text">
              <string>Classify</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QPushButton" name="m_btnPlay">
+            <property name="text">
+             <string>Play</string>
             </property>
            </widget>
           </item>
@@ -144,7 +151,7 @@
           <item>
            <widget class="QStackedWidget" name="m_pageStack">
             <property name="currentIndex">
-             <number>2</number>
+             <number>3</number>
             </property>
             <widget class="QWidget" name="page">
              <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -180,6 +187,7 @@
               </item>
              </layout>
             </widget>
+            <widget class="QWidget" name="m_video_page"/>
            </widget>
           </item>
          </layout>

@@ -14,6 +14,14 @@ set(BUILD_GUI_TOOL ON CACHE BOOL "Specify whether the Qt based GUI Tool should b
 set(BUILD_AUDIOSET_CONVERT_TOOL ON CACHE BOOL "Specify whether the audio dataset conversion tool should be built.")
 
 # -----------------------------------------------------------------------------------------------------------------------------
+# OUTPUT DIRECTORIES
+# -----------------------------------------------------------------------------------------------------------------------------                    
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
+
+# -----------------------------------------------------------------------------------------------------------------------------
 # SUB-DIRECTORIES
 # -----------------------------------------------------------------------------------------------------------------------------                    
 

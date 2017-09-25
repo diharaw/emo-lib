@@ -63,7 +63,6 @@ qint64 XYSeriesIODevice::writeData(const char * data, qint64 maxSize)
     qint64 size = points.count();
     for (int k = 0; k < size16/resolution; k++)
     {
-        qDebug("Data : %f", ((float)pcmData[resolution * k])/(float)32767);
         points.append(QPointF(k + size, ((float)pcmData[resolution * k])/(float)32767));
     }
 

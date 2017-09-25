@@ -26,11 +26,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    xyseriesiodevice.cpp
+    xyseriesiodevice.cpp \
+    wavfile.cpp
 
 HEADERS += \
         mainwindow.h \
-    xyseriesiodevice.h
+    xyseriesiodevice.h \
+    wavfile.h \
+    utils.h
 
 FORMS += \
         mainwindow.ui
