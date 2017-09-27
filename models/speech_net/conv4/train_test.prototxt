@@ -202,11 +202,21 @@ layer {
   }
 }
 layer {
-  name: "accuracy"
+  name: "accuracy_train"
   type: "Accuracy"
   bottom: "ip1"
   bottom: "label"
-  top: "accuracy"
+  top: "accuracy_train"
+  include {
+    phase: TRAIN
+  }
+}
+layer {
+  name: "accuracy_test"
+  type: "Accuracy"
+  bottom: "ip1"
+  bottom: "label"
+  top: "accuracy_test"
   include {
     phase: TEST
   }

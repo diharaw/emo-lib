@@ -1,4 +1,4 @@
 #pragma once
 
-#define EMOGPU_BEGIN_NAMESPACE namespace emogpu {
-#define EMOGPU_END_NAMESPACE }
+#define EMOLIB_BEGIN_NAMESPACE namespace emolib {
+#define EMOLIB_END_NAMESPACE }
