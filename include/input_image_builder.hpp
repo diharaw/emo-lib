@@ -17,7 +17,7 @@ public:
                     std::string face_det_3,
                     std::string face_det_4);
     cv::Mat crop_face(std::vector<cv::Rect>& faces, cv::Mat img);
-    cv::Mat crop_face(cv::Mat img);
+    bool crop_face(cv::Mat img, cv::Mat& out);
     InputImage* build(char* data, uint32_t width, uint32_t height);
     InputImage* build(std::string file);
     

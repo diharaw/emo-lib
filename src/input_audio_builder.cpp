@@ -92,7 +92,7 @@ cv::Mat InputAudioBuilder::extract_features(int16_t* samples, uint64_t count)
     {
         for(int j = 0; j < AUDIO_IMAGE_WIDTH; j++)
         {
-//            img.at<float>(i, j) =
+            img.at<float>(i, j) = static_cast<float>(mfcc_frames[j][i]);
         }
     }
     
@@ -100,7 +100,7 @@ cv::Mat InputAudioBuilder::extract_features(int16_t* samples, uint64_t count)
     {
         for(int j = 0; j < AUDIO_IMAGE_WIDTH; j++)
         {
-            //            img.at<float>(i, j) =
+            img.at<float>(i, j) = static_cast<float>(deltas[j][i]);
         }
     }
     
@@ -108,7 +108,7 @@ cv::Mat InputAudioBuilder::extract_features(int16_t* samples, uint64_t count)
     {
         for(int j = 0; j < AUDIO_IMAGE_WIDTH; j++)
         {
-            //            img.at<float>(i, j) =
+            img.at<float>(i, j) = static_cast<float>(delta_deltas[j][i]);
         }
     }
     

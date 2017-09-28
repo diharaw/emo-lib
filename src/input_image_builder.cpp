@@ -92,10 +92,8 @@ cv::Mat InputImageBuilder::crop_face(std::vector<cv::Rect>& faces, cv::Mat img)
     return resized;
 }
 
-cv::Mat InputImageBuilder::crop_face(cv::Mat img)
+bool InputImageBuilder::crop_face(cv::Mat img, cv::Mat& out)
 {
-    cv::Mat output;
-    
     std::vector<cv::Rect> faces_1;
     std::vector<cv::Rect> faces_2;
     std::vector<cv::Rect> faces_3;
@@ -107,22 +105,27 @@ cv::Mat InputImageBuilder::crop_face(cv::Mat img)
     m_face_det_4.detectMultiScale(img, faces_4, 1.1, 10, cv::CASCADE_SCALE_IMAGE);
 
     if(faces_1.size() > 0)
-        output = crop_face(faces_1, img);
+        out = crop_face(faces_1, img);
     else if(faces_2.size() > 0)
-        output = crop_face(faces_2, img);
+        out = crop_face(faces_2, img);
     else if(faces_3.size() > 0)
-        output = crop_face(faces_3, img);
+        out = crop_face(faces_3, img);
     else if(faces_4.size() > 0)
-        output = crop_face(faces_4, img);
+        out = crop_face(faces_4, img);
+    else
+        return false;
     
-    return output;
+    return true;
 }
 
 InputImage* InputImageBuilder::build(std::string file)
 {
     InputImage* img = new InputImage();
     cv::Mat temp = cv::imread(file);
-    img->m_cv_img = crop_face(temp);
+    
+    if(!crop_face(temp, img->m_cv_img))
+        return nullptr;
+    
     img->m_data = nullptr;
     return img;
 }
@@ -131,7 +134,10 @@ InputImage* InputImageBuilder::build(char* data, uint32_t width, uint32_t height
 {
     InputImage* img = new InputImage();
     cv::Mat temp = cv::Mat(height, width, CV_8SC3, data);
-    img->m_cv_img = crop_face(temp);
+    
+    if(!crop_face(temp, img->m_cv_img))
+        return nullptr;
+    
     img->m_data = data;
     return img;
 }
