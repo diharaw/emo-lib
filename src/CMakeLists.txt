@@ -48,6 +48,7 @@ add_library(EmoLib ${EMO_LIB_HEADERS} ${EMO_LIB_SOURCES})
 # LINKING
 # -----------------------------------------------------------------------------------------------------------------------------
 
+target_link_libraries(EmoLib ${Caffe_LINK})
 target_link_libraries(EmoLib caffe)
 target_link_libraries(EmoLib sndfile-static)
 target_link_libraries(EmoLib LibXtract)

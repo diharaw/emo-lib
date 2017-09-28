@@ -41,10 +41,13 @@ static int32_t max_class(std::vector<PredictionIdx>& predictions)
     for(auto& pair : predictions)
     {
         if(pair.second > max)
+        {
+            max = pair.second;
             maxIdx = pair.first;
+        }
     }
     
-    return max;
+    return maxIdx;
 }
 
 int32_t Classifier::classify(InputImage* img, InputAudio* audio)

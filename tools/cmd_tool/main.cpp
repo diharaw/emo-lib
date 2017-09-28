@@ -18,11 +18,11 @@ int main(int argc, char *argv[])
         return 1;
     }
     
-    std::string model = std::string(argv[0]);
-    std::string weights = std::string(argv[1]);
-    std::string mean = std::string(argv[2]);
-    std::string label = std::string(argv[3]);
-    std::string image = std::string(argv[4]);
+    std::string model = std::string(argv[1]);
+    std::string weights = std::string(argv[2]);
+    std::string mean = std::string(argv[3]);
+    std::string label = std::string(argv[4]);
+    std::string image = std::string(argv[5]);
     
     emolib::Classifier classifier;
     emolib::InputImageBuilder builder;

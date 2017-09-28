@@ -1,5 +1,7 @@
 #include <caffe_classifier.hpp>
 
+#define CPU_ONLY
+
 EMOLIB_BEGIN_NAMESPACE
 
 // Get all available GPU devices
@@ -8,7 +10,7 @@ static void get_gpus(vector<int>* gpus) {
 #ifndef CPU_ONLY
     count = Caffe::EnumerateDevices(true);
 #else
-    NO_GPU;
+//    NO_GPU;
 #endif
     for (int i = 0; i < count; ++i) {
         gpus->push_back(i);

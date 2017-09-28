@@ -4,6 +4,10 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 # FLAGS
 # -----------------------------------------------------------------------------------------------------------------------------
 
+if(APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS "-Wl,-force_load ${caffe}" "-Wl,-force_load ${caffeproto}")
+endif()
+
 if(NOT WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -stdlib=libc++")
 endif()
