@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 # PROJECT
 # -----------------------------------------------------------------------------------------------------------------------------
 
-project("EmoGPU")
+project("EmoLib")
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # OPTIONS
@@ -12,6 +12,7 @@ project("EmoGPU")
 
 set(BUILD_GUI_TOOL ON CACHE BOOL "Specify whether the Qt based GUI Tool should be built.")
 set(BUILD_AUDIOSET_CONVERT_TOOL ON CACHE BOOL "Specify whether the audio dataset conversion tool should be built.")
+set(BUILD_CMD_TOOL ON CACHE BOOL "Specify whether the command line tool should be built.")
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # OUTPUT DIRECTORIES
@@ -38,7 +39,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 include(cmake/Dependencies.cmake)
 
 # Setup library include paths
-set(EMO_GPU_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/include")
+set(EMO_LIB_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/include")
 
 # Setup external include paths
 set(CAFFE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/caffe/include/caffe")
@@ -48,7 +49,7 @@ set(LIBSNDFILE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/libsndfile/src")
 set(LIBXTRACT_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/external/LibXtract/include")
 
 # Set includes
-include_directories("${EMO_GPU_INCLUDE_PATH}"
+include_directories("${EMO_LIB_INCLUDE_PATH}"
                     "${CAFFE_INCLUDE_PATH}"
                     "${CAFFE_INCLUDE_PATH_INTERNAL}"
                     "${CAFFE_INCLUDE_PATH_GENERATED}"
@@ -74,4 +75,9 @@ endif()
 if(BUILD_AUDIOSET_CONVERT_TOOL)
     add_subdirectory("tools/convert_audioset")
 endif()
+
+if(BUILD_CMD_TOOL)
+    add_subdirectory("tools/cmd_tool")
+endif()
+
 
