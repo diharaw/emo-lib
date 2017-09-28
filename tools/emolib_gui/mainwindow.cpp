@@ -11,6 +11,7 @@
 #include <QtCharts/QValueAxis>
 #include <QFileDialog>
 #include <QImageReader>
+#include <QtConcurrent/qtconcurrentrun.h>
 #include <QImageWriter>
 #include <QStandardPaths>
 #include <QMessageBox>
@@ -20,7 +21,19 @@
 #include <QVideoProbe>
 #include <QAudioOutput>
 #include <QMediaPlaylist>
+#include <iostream>
+#include <input_image.hpp>
+#include <input_audio.hpp>
 #include "wavfile.h"
+
+#define FILTER_1 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_default.xml"
+#define FILTER_2 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_alt2.xml"
+#define FILTER_3 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_alt.xml"
+#define FILTER_4 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_alt_tree.xml"
+#define FACIAL_MODEL "/Users/diharaw/Documents/Personal/EmoGPU/models/vgg_face/deploy.prototxt"
+#define FACIAL_MODEL_WEIGHTS "/Users/diharaw/Documents/Personal/EmoGPU/weights/vgg_face/CK/vgg_face_train_iter_10000.caffemodel"
+#define FACIAL_MODEL_MEAN "/Users/diharaw/Documents/Personal/EmoGPU/datasets/face/CK/4 - LMDB/train/mean.binaryproto"
+#define FACIAL_MODEL_LABEL "/Users/diharaw/Documents/Personal/EmoGPU/datasets/face/CK/emotion_labels.txt"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -29,7 +42,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     m_emotionSet = new QBarSet("Emotion");
-    *m_emotionSet << 1 << 2 << 3 << 4 << 5 << 6;
+    *m_emotionSet << 0 << 0 << 0 << 0 << 0 << 0;
+    
     QBarSeries *series = new QBarSeries();
     series->append(m_emotionSet);
 
@@ -38,11 +52,13 @@ MainWindow::MainWindow(QWidget *parent) :
     m_chart->setTitle("Classification Results");
     m_chart->setAnimationOptions(QChart::SeriesAnimations);
 
-    m_categories << "Neutral" << "Happy" << "Angry" << "Sad" << "Surprise" << "Fear";
+    m_categories << "Neutral" <<  "Angry" <<  "Fear" <<  "Happy" <<  "Sad" <<  "Surprise";
     m_axis = new QBarCategoryAxis();
     m_axis->append(m_categories);
     m_chart->createDefaultAxes();
     m_chart->setAxisX(m_axis, series);
+    m_chart->axisY()->setMin(0.0f);
+    m_chart->axisY()->setMax(1.0f);
 
     m_chart->legend()->setVisible(false);
 
@@ -82,6 +98,18 @@ MainWindow::MainWindow(QWidget *parent) :
     m_inputTypes << "Webcam/Mic" << "Files";
     ui->m_cmbInput->addItems(m_inputTypes);
     choosePage();
+    
+    initializeClassifiers();
+}
+
+void MainWindow::initializeClassifiers()
+{
+    if(!m_image_builder.initialize(FILTER_1, FILTER_2, FILTER_3, FILTER_4))
+    {
+        std::cout << "Failed to initialize Input Builder" << std::endl;
+    }
+    
+    m_classifier.load_facial_model(FACIAL_MODEL, FACIAL_MODEL_WEIGHTS, FACIAL_MODEL_MEAN, FACIAL_MODEL_LABEL);
 }
 
 MainWindow::~MainWindow()
@@ -91,6 +119,11 @@ MainWindow::~MainWindow()
     m_audioInput->stop();
     m_mediaPlayer->stop();
     m_audioRecorder->stop();
+    
+    if(m_classification_future.isRunning())
+    {
+        m_classification_future.cancel();
+    }
 
     delete ui;
 }
@@ -397,6 +430,7 @@ bool MainWindow::loadImage(const QString &fileName)
     m_cachedPixmap.setDevicePixelRatio(devicePixelRatio());
 
     ui->m_selectedImageLabel->setPixmap(m_cachedPixmap);
+    m_selected_image = std::string(fileName.toUtf8());
 
     return true;
 }
@@ -457,9 +491,62 @@ bool MainWindow::loadVideo(const QString& path)
     return true;
 }
 
+static QImage imageFromVideoFrame(const QVideoFrame& buffer)
+{
+    QImage img;
+    QVideoFrame frame(buffer);  // make a copy we can call map (non-const) on
+    frame.map(QAbstractVideoBuffer::ReadOnly);
+    QImage::Format imageFormat = QVideoFrame::imageFormatFromPixelFormat(
+                                                                         frame.pixelFormat());
+    // BUT the frame.pixelFormat() is QVideoFrame::Format_Jpeg, and this is
+    // mapped to QImage::Format_Invalid by
+    // QVideoFrame::imageFormatFromPixelFormat
+    if (imageFormat != QImage::Format_Invalid) {
+        img = QImage(frame.bits(),
+                     frame.width(),
+                     frame.height(),
+                     // frame.bytesPerLine(),
+                     imageFormat);
+    } else {
+        // e.g. JPEG
+        int nbytes = frame.mappedBytes();
+        img = QImage::fromData(frame.bits(), nbytes);
+    }
+    frame.unmap();
+    return img;
+}
+
+static cv::Mat QImage2Mat(QImage const& src)
+{
+    cv::Mat tmp(src.height(),src.width(),CV_8UC4,(uchar*)src.bits(),src.bytesPerLine());
+    cv::Mat result; // deep copy just in case (my lack of knowledge with open cv)
+    cvtColor(tmp, result,CV_RGBA2RGB);
+    return result;
+}
+
+const int interval = 100;
+
+static int counter = 0;
+
 void MainWindow::processFrame(QVideoFrame frame)
 {
-    qDebug("Process Frame!!");
+    if(counter == interval && m_classification_future.isFinished())
+    {
+        if(m_classification_future.results().size() > 0)
+        {
+            for(int i = 0; i < m_classification_future.result().size(); i++)
+            {
+                m_emotionSet->replace(i, m_classification_future.result()[i]);
+            }
+        }
+        counter = 0;
+        QImage image = imageFromVideoFrame(frame);
+        cv::Mat cvImg = QImage2Mat(image);
+        emolib::InputImage* input = m_image_builder.build(cvImg);
+        m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, input, nullptr);
+    }
+
+    counter++;
 }
 
 void MainWindow::processBuffer(QAudioBuffer buffer)
@@ -494,4 +581,23 @@ void MainWindow::on_m_btnBrowse_clicked()
         openAudio();
     else
         openVideo();
+}
+
+void MainWindow::on_m_btnClassify_clicked()
+{
+    int index = ui->m_cmbClassifier->currentIndex();
+    
+    if(index == 0 && m_selected_image != "")
+    {
+        emolib::InputImage* image = m_image_builder.build(m_selected_image);
+        std::vector<float> results = m_classifier.classify_vec(image, nullptr);
+        
+        for(int i = 0; i < results.size(); i++)
+        {
+            m_emotionSet->replace(i, results[i]);
+        }
+    }
+    else
+    {
+    }
 }

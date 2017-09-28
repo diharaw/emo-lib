@@ -50,6 +50,83 @@ static int32_t max_class(std::vector<PredictionIdx>& predictions)
     return maxIdx;
 }
 
+std::vector<float> Classifier::classify_vec(InputImage* img, InputAudio* audio)
+{
+    std::vector<float> final_predictions;
+    std::vector<PredictionIdx> facial_predictions;
+    std::vector<PredictionIdx> speech_predictions;
+    
+    final_predictions.resize(6);
+    
+    if(img)
+    {
+        facial_predictions = m_facial_classifier->ClassifyIndexes(img->m_cv_img, 6);
+        delete[] img->m_data;
+        delete img;
+    }
+    
+    if(audio)
+    {
+        speech_predictions = m_speech_classifier->ClassifyIndexes(audio->m_img, 6);
+        delete[] audio->m_data;
+        delete audio;
+    }
+    
+    if(facial_predictions.size() > 0 && speech_predictions.size() == 0)
+    {
+        for(auto& pair : facial_predictions)
+            final_predictions[pair.first] = pair.second;
+    }
+    else if(facial_predictions.size() == 0 && speech_predictions.size() > 0)
+    {
+        for(auto& pair : speech_predictions)
+            final_predictions[pair.first] = pair.second;
+    }
+    else if(facial_predictions.size() > 0 && speech_predictions.size() > 0)
+    {
+        std::vector<PredictionIdx> bimodel_predictions;
+        float percentage = 0.0f;
+        float numerator = 0.0f;
+        float denominator = 0.0f;
+        
+        if(SPEECH_MODEL_ACCURACY > FACIAL_MODEL_ACCURACY)
+        {
+            numerator = FACIAL_MODEL_ACCURACY;
+            denominator = SPEECH_MODEL_ACCURACY;
+        }
+        else if(FACIAL_MODEL_ACCURACY > SPEECH_MODEL_ACCURACY)
+        {
+            numerator = SPEECH_MODEL_ACCURACY;
+            denominator = FACIAL_MODEL_ACCURACY;
+        }
+        
+        percentage = numerator/denominator;
+        
+        for(int i = 0; i < 5; i++)
+        {
+            float D = percentage/2.0f;
+            float P1 = 0.0f;
+            float P2 = 0.0f;
+            
+            if(SPEECH_MODEL_ACCURACY > FACIAL_MODEL_ACCURACY)
+            {
+                P1 = speech_predictions[i].second;
+                P2 = facial_predictions[i].second;
+            }
+            else if(FACIAL_MODEL_ACCURACY > SPEECH_MODEL_ACCURACY)
+            {
+                P1 = facial_predictions[i].second;
+                P2 = speech_predictions[i].second;
+            }
+            
+            float val = ((0.5f + D) * P1) + ((0.5f - D) * P2);
+            final_predictions[speech_predictions[i].first] = val;
+        }
+    }
+    
+    return final_predictions;
+}
+
 int32_t Classifier::classify(InputImage* img, InputAudio* audio)
 {
     std::vector<PredictionIdx> facial_predictions;

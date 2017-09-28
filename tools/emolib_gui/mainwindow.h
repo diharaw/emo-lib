@@ -12,7 +12,12 @@
 #include <QtCharts/QChartGlobal>
 #include <QLabel>
 #include <QAudioBuffer>
+#include <string>
 #include <QVideoWidget>
+#include <QFuture>
+#include <classifier.hpp>
+#include <input_image_builder.hpp>
+#include <input_audio_builder.hpp>
 
 class WavFile;
 
@@ -57,7 +62,11 @@ private slots:
 
     void on_m_btnBrowse_clicked();
 
+    void on_m_btnClassify_clicked();
+
 private:
+    void initializeClassifiers();
+    
     void setupCameraPage();
     void setupAudioPage();
     void setupImagePage();
@@ -77,7 +86,7 @@ private:
 
     void openVideo();
     bool loadVideo(const QString &);
-
+    
 public slots:
     void processFrame(QVideoFrame frame);
     void processBuffer(QAudioBuffer buffer);
@@ -104,7 +113,13 @@ private:
     XYSeriesIODevice* m_device;
     QLineSeries*      m_series;
     QAudioInput*      m_audioInput;
-    QAudioOutput*      m_audioOutput;
+    std::vector<float> m_results;
+    QFuture<std::vector<float>> m_classification_future;
+    QAudioOutput*     m_audioOutput;
+    std::string               m_selected_image;
+    emolib::Classifier        m_classifier;
+    emolib::InputImageBuilder m_image_builder;
+    emolib::InputAudioBuilder m_audio_builder;
 };
 
 #endif // MAINWINDOW_H

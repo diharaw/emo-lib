@@ -130,10 +130,21 @@ InputImage* InputImageBuilder::build(std::string file)
     return img;
 }
 
+InputImage* InputImageBuilder::build(cv::Mat cv_img)
+{
+    InputImage* img = new InputImage();
+    
+    if(!crop_face(cv_img, img->m_cv_img))
+        return nullptr;
+    
+    img->m_data = nullptr;
+    return img;
+}
+
 InputImage* InputImageBuilder::build(char* data, uint32_t width, uint32_t height)
 {
     InputImage* img = new InputImage();
-    cv::Mat temp = cv::Mat(height, width, CV_8SC3, data);
+    cv::Mat temp = cv::Mat(height, width, CV_8UC3, data);
     
     if(!crop_face(temp, img->m_cv_img))
         return nullptr;
