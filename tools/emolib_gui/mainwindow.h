@@ -115,7 +115,7 @@ private:
     QAudioInput*      m_audioInput;
     std::vector<float> m_results;
     QFuture<std::vector<float>> m_classification_future;
-    QAudioOutput*     m_audioOutput;
+    QAudioOutput*     m_audioOutput = nullptr;
     std::string               m_selected_image;
     emolib::Classifier        m_classifier;
     emolib::InputImageBuilder m_image_builder;

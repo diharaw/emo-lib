@@ -35,6 +35,10 @@
 #define FACIAL_MODEL_MEAN "/Users/diharaw/Documents/Personal/EmoGPU/datasets/face/CK/4 - LMDB/train/mean.binaryproto"
 #define FACIAL_MODEL_LABEL "/Users/diharaw/Documents/Personal/EmoGPU/datasets/face/CK/emotion_labels.txt"
 
+#define SPEECH_MODEL "/Users/diharaw/Documents/Personal/EmoGPU/models/speech_net/conv4/deploy.prototxt"
+#define SPEECH_MODEL_WEIGHTS "/Users/diharaw/Documents/Personal/EmoGPU/weights/speech_net/conv4/EMODB/train_test.prototxt_iter_3000.caffemodel"
+#define SPEECH_MODEL_MEAN "/Users/diharaw/Documents/Personal/EmoGPU/datasets/speech/EMODB/4 - LMDB/train/mean.binaryproto"
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -109,7 +113,13 @@ void MainWindow::initializeClassifiers()
         std::cout << "Failed to initialize Input Builder" << std::endl;
     }
     
+    if(!m_audio_builder.initialize(16000, 40, 20))
+    {
+        std::cout << "Failed to initialize Input Builder" << std::endl;
+    }
+    
     m_classifier.load_facial_model(FACIAL_MODEL, FACIAL_MODEL_WEIGHTS, FACIAL_MODEL_MEAN, FACIAL_MODEL_LABEL);
+    m_classifier.load_speech_model(SPEECH_MODEL, SPEECH_MODEL_WEIGHTS, SPEECH_MODEL_MEAN, FACIAL_MODEL_LABEL);
 }
 
 MainWindow::~MainWindow()
@@ -526,11 +536,12 @@ static cv::Mat QImage2Mat(QImage const& src)
 
 const int interval = 100;
 
-static int counter = 0;
+static int facial_counter = 0;
+static int speech_counter = 0;
 
 void MainWindow::processFrame(QVideoFrame frame)
 {
-    if(counter == interval && m_classification_future.isFinished())
+    if(facial_counter > interval && m_classification_future.isFinished())
     {
         if(m_classification_future.results().size() > 0)
         {
@@ -539,19 +550,37 @@ void MainWindow::processFrame(QVideoFrame frame)
                 m_emotionSet->replace(i, m_classification_future.result()[i]);
             }
         }
-        counter = 0;
+        facial_counter = 0;
         QImage image = imageFromVideoFrame(frame);
         cv::Mat cvImg = QImage2Mat(image);
         emolib::InputImage* input = m_image_builder.build(cvImg);
         m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, input, nullptr);
     }
 
-    counter++;
+    facial_counter++;
 }
 
 void MainWindow::processBuffer(QAudioBuffer buffer)
 {
-    qDebug("Process Buffer!!");
+    if(speech_counter > interval && m_classification_future.isFinished())
+    {
+        if(m_classification_future.results().size() > 0)
+        {
+            for(int i = 0; i < m_classification_future.result().size(); i++)
+            {
+                m_emotionSet->replace(i, m_classification_future.result()[i]);
+            }
+        }
+
+        if(buffer.sampleCount() >= m_audio_builder.num_required_samples())
+        {
+            emolib::InputAudio* input = m_audio_builder.build((int16_t*)buffer.data(), buffer.sampleCount());
+            m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, nullptr, input);
+        }
+        
+        speech_counter = 0;
+    }
+    speech_counter++;
 }
 
 void MainWindow::on_m_btnPlay_clicked()
