@@ -57,7 +57,6 @@ include_directories("${EMO_LIB_INCLUDE_PATH}"
                     "${LIBXTRACT_INCLUDE_PATH}"
                     "${ViennaCL_INCLUDE_DIRS}"
                     "${LMDB_INCLUDE_DIR}"
-                    "${LevelDB_INCLUDES}"
                     "${Boost_INCLUDE_DIRS}")
 
 # -----------------------------------------------------------------------------------------------------------------------------
@@ -69,7 +68,7 @@ add_subdirectory("src")
 
 # Tools
 if(BUILD_GUI_TOOL)
-    # add_subdirectory("tools/gui_tool")
+    add_subdirectory("tools/emolib_gui")
 endif()
 
 if(BUILD_AUDIOSET_CONVERT_TOOL)

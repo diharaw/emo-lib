@@ -8,39 +8,61 @@ if(NOT WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -stdlib=libc++")
 endif()
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+set (CMAKE_PREFIX_PATH "/Users/diharaw/Qt/5.9.1/clang_64/lib/cmake")
+
+find_package(Qt5Widgets)
+find_package(Qt5Gui)
+find_package(Qt5Multimedia)
+find_package(Qt5MultimediaWidgets)
+find_package(Qt5Charts)
+
 # -----------------------------------------------------------------------------------------------------------------------------
 # FILES
 # -----------------------------------------------------------------------------------------------------------------------------
 
 # Headers
-set(EMO_GPU_HEADERS "${PROJECT_SOURCE_DIR}/include/classifier.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/facial_emotion_classifier.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/facial_emotion_classifier_cpu.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/facial_emotion_classifier_gpu.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/speech_emotion_classifier.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/speech_emotion_classifier_cpu.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/speech_emotion_classifier_gpu.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/trainer.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/common.hpp"
-                    "${PROJECT_SOURCE_DIR}/include/macros.hpp")
+set(GUI_TOOL_HEADERS "mainwindow.h"
+                    "wavfile.h"
+                    "xyseriesiodevice.h"
+                    "utils.h")
 
 # Sources
-set(EMO_GPU_SOURCES "facial_emotion_classifier.cpp")
+set(GUI_TOOL_SOURCES "main.cpp"
+                     "mainwindow.cpp"
+                     "wavfile.cpp"
+                     "xyseriesiodevice.cpp")
+
+SET(GUI_TOOL_FORMS mainwindow.ui)
+
+QT5_WRAP_CPP(APP_HEADERS_MOC "mainwindow.h")
+QT5_WRAP_UI(APP_FORMS_HEADERS ${GUI_TOOL_FORMS})
 
 # Source groups
-source_group("Headers" FILES ${EMO_GPU_HEADERS})
-source_group("Sources" FILES ${EMO_GPU_SOURCES})
+source_group("Headers" FILES ${GUI_TOOL_HEADERS})
+source_group("Sources" FILES ${GUI_TOOL_SOURCES})
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # TARGETS
 # -----------------------------------------------------------------------------------------------------------------------------
 
-add_library(EmoGPU ${EMO_GPU_HEADERS} ${EMO_GPU_SOURCES})
+if(APPLE)
+    add_executable(gui_tool MACOSX_BUNDLE ${GUI_TOOL_HEADERS} ${GUI_TOOL_SOURCES})
+else()
+    add_executable(gui_tool ${GUI_TOOL_HEADERS} ${GUI_TOOL_SOURCES})
+endif()
 
 # -----------------------------------------------------------------------------------------------------------------------------
 # LINKING
 # -----------------------------------------------------------------------------------------------------------------------------
 
-target_link_libraries(EmoGPU caffe)
-target_link_libraries(EmoGPU sndfile-static)
-target_link_libraries(EmoGPU LibXtract)
+target_link_libraries(gui_tool EmoLib)
+target_link_libraries(gui_tool ${OpenCV_LIBS})
+target_link_libraries(gui_tool Qt5::Widgets)
+target_link_libraries(gui_tool Qt5::Gui)
+target_link_libraries(gui_tool Qt5::Charts)
+target_link_libraries(gui_tool Qt5::Multimedia)
+target_link_libraries(gui_tool Qt5::MultimediaWidgets)
