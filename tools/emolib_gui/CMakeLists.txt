@@ -66,3 +66,7 @@ target_link_libraries(gui_tool Qt5::Gui)
 target_link_libraries(gui_tool Qt5::Charts)
 target_link_libraries(gui_tool Qt5::Multimedia)
 target_link_libraries(gui_tool Qt5::MultimediaWidgets)
+
+if(APPLE)
+    target_link_libraries(gui_tool "-framework CoreFoundation")
+endif()
