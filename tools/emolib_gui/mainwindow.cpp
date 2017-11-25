@@ -26,18 +26,22 @@
 #include <input_audio.hpp>
 #include "wavfile.h"
 
-#define FILTER_1 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_default.xml"
-#define FILTER_2 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_alt2.xml"
-#define FILTER_3 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_alt.xml"
-#define FILTER_4 "/Users/diharaw/Documents/Personal/EmoGPU/filters/haarcascade_frontalface_alt_tree.xml"
-#define FACIAL_MODEL "/Users/diharaw/Documents/Personal/EmoGPU/models/vgg_face/deploy.prototxt"
-#define FACIAL_MODEL_WEIGHTS "/Users/diharaw/Documents/Personal/EmoGPU/weights/vgg_face/CK/vgg_face_train_iter_10000.caffemodel"
-#define FACIAL_MODEL_MEAN "/Users/diharaw/Documents/Personal/EmoGPU/datasets/face/CK/4 - LMDB/train/mean.binaryproto"
-#define FACIAL_MODEL_LABEL "/Users/diharaw/Documents/Personal/EmoGPU/datasets/face/CK/emotion_labels.txt"
+#ifdef __APPLE__
+    #include <CoreFoundation/CoreFoundation.h>
+#endif
 
-#define SPEECH_MODEL "/Users/diharaw/Documents/Personal/EmoGPU/models/speech_net/conv4/deploy.prototxt"
-#define SPEECH_MODEL_WEIGHTS "/Users/diharaw/Documents/Personal/EmoGPU/weights/speech_net/conv4/EMODB/train_test.prototxt_iter_3000.caffemodel"
-#define SPEECH_MODEL_MEAN "/Users/diharaw/Documents/Personal/EmoGPU/datasets/speech/EMODB/4 - LMDB/train/mean.binaryproto"
+#define FILTER_1 "data/filters/haarcascade_frontalface_default.xml"
+#define FILTER_2 "data/filters/haarcascade_frontalface_alt2.xml"
+#define FILTER_3 "data/filters/haarcascade_frontalface_alt.xml"
+#define FILTER_4 "data/filters/haarcascade_frontalface_alt_tree.xml"
+#define FACIAL_MODEL "data/facial_model/deploy.prototxt"
+#define FACIAL_MODEL_WEIGHTS "data/facial_model/vgg_face_train_iter_10000.caffemodel"
+#define FACIAL_MODEL_MEAN "data/facial_model/mean.binaryproto"
+#define FACIAL_MODEL_LABEL "data/facial_model/emotion_labels.txt"
+
+#define SPEECH_MODEL "data/speech_model/deploy.prototxt"
+#define SPEECH_MODEL_WEIGHTS "data/speech_model/train_test.prototxt_iter_3000.caffemodel"
+#define SPEECH_MODEL_MEAN "data/speech_model/mean.binaryproto"
 
 #define VIDEO_CLASSIFIER_INTERVAL 400
 
@@ -110,20 +114,53 @@ MainWindow::MainWindow(QWidget *parent) :
     initializeClassifiers();
 }
 
+static std::string pathForResource(CFStringRef res)
+{
+    CFURLRef resUrlRef = CFBundleCopyResourceURL(CFBundleGetMainBundle(), res, NULL, NULL);
+    CFStringRef resPathRef = CFURLCopyPath(resUrlRef);
+    std::string resPath = CFStringGetCStringPtr(resPathRef, kCFStringEncodingUTF8);
+    CFRelease(resPathRef);
+    CFRelease(resUrlRef);
+    return resPath;
+}
+
 void MainWindow::initializeClassifiers()
 {
-    if(!m_image_builder.initialize(FILTER_1, FILTER_2, FILTER_3, FILTER_4))
+    if(!m_audio_builder.initialize(16000, 40, 20))
     {
         std::cout << "Failed to initialize Input Builder" << std::endl;
     }
     
-    if(!m_audio_builder.initialize(16000, 40, 20))
+#if defined(__APPLE__)
+    std::string f1Path = pathForResource(CFSTR(FILTER_1));
+    std::string f2Path = pathForResource(CFSTR(FILTER_2));
+    std::string f3Path = pathForResource(CFSTR(FILTER_3));
+    std::string f4Path = pathForResource(CFSTR(FILTER_4));
+    std::string facialModel = pathForResource(CFSTR(FACIAL_MODEL));
+    std::string facialModelWeights = pathForResource(CFSTR(FACIAL_MODEL_WEIGHTS));
+    std::string facialModelMean = pathForResource(CFSTR(FACIAL_MODEL_MEAN));
+    std::string facialModelLabel = pathForResource(CFSTR(FACIAL_MODEL_LABEL));
+    std::string speechModel = pathForResource(CFSTR(SPEECH_MODEL));
+    std::string speechModelWeights = pathForResource(CFSTR(SPEECH_MODEL_WEIGHTS));
+    std::string speechModelMean = pathForResource(CFSTR(SPEECH_MODEL_MEAN));
+    
+    // Initialize
+    if(!m_image_builder.initialize(f1Path, f2Path, f3Path, f4Path))
+    {
+        std::cout << "Failed to initialize Input Builder" << std::endl;
+    }
+    
+    m_classifier.load_facial_model(facialModel, facialModelWeights, facialModelMean, facialModelLabel);
+    m_classifier.load_speech_model(speechModel, speechModelWeights, speechModelMean, facialModelLabel);
+#else
+    if(!m_image_builder.initialize(FILTER_1, FILTER_2, FILTER_3, FILTER_4))
     {
         std::cout << "Failed to initialize Input Builder" << std::endl;
     }
     
     m_classifier.load_facial_model(FACIAL_MODEL, FACIAL_MODEL_WEIGHTS, FACIAL_MODEL_MEAN, FACIAL_MODEL_LABEL);
     m_classifier.load_speech_model(SPEECH_MODEL, SPEECH_MODEL_WEIGHTS, SPEECH_MODEL_MEAN, FACIAL_MODEL_LABEL);
+#endif
     
     m_classifierThread = std::thread(&MainWindow::classifierLoop, this);
 }
@@ -135,12 +172,7 @@ MainWindow::~MainWindow()
     m_audioInput->stop();
     m_mediaPlayer->stop();
     m_audioRecorder->stop();
-    
-//    if(m_classification_future.isRunning())
-//    {
-//        m_classification_future.cancel();
-//    }
-//
+
     m_videoRunning = false;
     m_workAvailableSema.notify();
     m_classifierThreadDoneSema.wait();
@@ -575,47 +607,8 @@ bool MainWindow::loadVideo(const QString& path)
     return true;
 }
 
-const int interval = 100;
-
-static int facial_counter = 0;
-static int speech_counter = 0;
-
 void MainWindow::processFrame(QVideoFrame frame)
 {
-//    if(facial_counter > interval && m_classification_future.isFinished())
-//    {
-//        if(m_classification_future.results().size() > 0)
-//        {
-//            for(int i = 0; i < m_classification_future.result().size(); i++)
-//            {
-//                m_emotionSet->replace(i, m_classification_future.result()[i]);
-//            }
-//        }
-//        facial_counter = 0;
-//        QImage image = imageFromVideoFrame(frame);
-//        cv::Mat cvImg = QImage2Mat(image);
-//        emolib::InputImage* input = m_image_builder.build(cvImg);
-//        m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, input, nullptr);
-//    }
-//
-//    facial_counter++;
-    
-//    if(facial_counter > interval)
-//    {
-//        facial_counter = 0;
-//        QImage image = imageFromVideoFrame(frame);
-//        cv::Mat cvImg = QImage2Mat(image);
-//        emolib::InputImage* input = m_image_builder.build(cvImg);
-//
-//        std::vector<float> results = m_classifier.classify_vec(input, nullptr);
-//        for(int i = 0; i < results.size(); i++)
-//        {
-//            m_emotionSet->replace(i, results[i]);
-//        }
-//    }
-//
-//    facial_counter++;
-    
     if(m_video_frame_queue.empty())
     {
         m_video_frame_queue.push(frame);
@@ -625,25 +618,25 @@ void MainWindow::processFrame(QVideoFrame frame)
 
 void MainWindow::processBuffer(QAudioBuffer buffer)
 {
-    if(speech_counter > interval && m_classification_future.isFinished())
-    {
-        if(m_classification_future.results().size() > 0)
-        {
-            for(int i = 0; i < m_classification_future.result().size(); i++)
-            {
-                m_emotionSet->replace(i, m_classification_future.result()[i]);
-            }
-        }
-
-        if(buffer.sampleCount() >= m_audio_builder.num_required_samples())
-        {
-            emolib::InputAudio* input = m_audio_builder.build((int16_t*)buffer.data(), buffer.sampleCount());
-            m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, nullptr, input);
-        }
-        
-        speech_counter = 0;
-    }
-    speech_counter++;
+//    if(speech_counter > interval && m_classification_future.isFinished())
+//    {
+//        if(m_classification_future.results().size() > 0)
+//        {
+//            for(int i = 0; i < m_classification_future.result().size(); i++)
+//            {
+//                m_emotionSet->replace(i, m_classification_future.result()[i]);
+//            }
+//        }
+//
+//        if(buffer.sampleCount() >= m_audio_builder.num_required_samples())
+//        {
+//            emolib::InputAudio* input = m_audio_builder.build((int16_t*)buffer.data(), buffer.sampleCount());
+//            m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, nullptr, input);
+//        }
+//
+//        speech_counter = 0;
+//    }
+//    speech_counter++;
 }
 
 void MainWindow::on_m_btnPlay_clicked()
@@ -688,8 +681,5 @@ void MainWindow::on_m_btnClassify_clicked()
         {
             m_emotionSet->replace(i, results[i]);
         }
-    }
-    else
-    {
     }
 }
