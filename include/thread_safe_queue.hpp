@@ -40,6 +40,11 @@ public:
         q.pop();
         return true;
     }
+    
+    bool empty()
+    {
+        return q.empty();
+    }
 };
 
 EMOLIB_END_NAMESPACE

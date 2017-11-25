@@ -39,6 +39,8 @@
 #define SPEECH_MODEL_WEIGHTS "/Users/diharaw/Documents/Personal/EmoGPU/weights/speech_net/conv4/EMODB/train_test.prototxt_iter_3000.caffemodel"
 #define SPEECH_MODEL_MEAN "/Users/diharaw/Documents/Personal/EmoGPU/datasets/speech/EMODB/4 - LMDB/train/mean.binaryproto"
 
+#define VIDEO_CLASSIFIER_INTERVAL 400
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -122,6 +124,8 @@ void MainWindow::initializeClassifiers()
     
     m_classifier.load_facial_model(FACIAL_MODEL, FACIAL_MODEL_WEIGHTS, FACIAL_MODEL_MEAN, FACIAL_MODEL_LABEL);
     m_classifier.load_speech_model(SPEECH_MODEL, SPEECH_MODEL_WEIGHTS, SPEECH_MODEL_MEAN, FACIAL_MODEL_LABEL);
+    
+    m_classifierThread = std::thread(&MainWindow::classifierLoop, this);
 }
 
 MainWindow::~MainWindow()
@@ -132,10 +136,17 @@ MainWindow::~MainWindow()
     m_mediaPlayer->stop();
     m_audioRecorder->stop();
     
-    if(m_classification_future.isRunning())
-    {
-        m_classification_future.cancel();
-    }
+//    if(m_classification_future.isRunning())
+//    {
+//        m_classification_future.cancel();
+//    }
+//
+    m_videoRunning = false;
+    m_workAvailableSema.notify();
+    m_classifierThreadDoneSema.wait();
+    
+    m_classifierThread.join();
+    qDebug() << "Classifier Thread Joined!";
 
     delete ui;
 }
@@ -267,6 +278,67 @@ void MainWindow::selectCameraPage()
 
     if(m_videoProbe->isActive())
         qDebug("Probe Active");
+}
+
+static QImage imageFromVideoFrame(const QVideoFrame& buffer)
+{
+    QImage img;
+    QVideoFrame frame(buffer);  // make a copy we can call map (non-const) on
+    frame.map(QAbstractVideoBuffer::ReadOnly);
+    QImage::Format imageFormat = QVideoFrame::imageFormatFromPixelFormat(
+                                                                         frame.pixelFormat());
+    // BUT the frame.pixelFormat() is QVideoFrame::Format_Jpeg, and this is
+    // mapped to QImage::Format_Invalid by
+    // QVideoFrame::imageFormatFromPixelFormat
+    if (imageFormat != QImage::Format_Invalid) {
+        img = QImage(frame.bits(),
+                     frame.width(),
+                     frame.height(),
+                     // frame.bytesPerLine(),
+                     imageFormat);
+    } else {
+        // e.g. JPEG
+        int nbytes = frame.mappedBytes();
+        img = QImage::fromData(frame.bits(), nbytes);
+    }
+    frame.unmap();
+    return img;
+}
+
+static cv::Mat QImage2Mat(QImage const& src)
+{
+    cv::Mat tmp(src.height(),src.width(),CV_8UC4,(uchar*)src.bits(),src.bytesPerLine());
+    cv::Mat result; // deep copy just in case (my lack of knowledge with open cv)
+    cvtColor(tmp, result,CV_RGBA2RGB);
+    return result;
+}
+
+
+void MainWindow::classifierLoop()
+{
+    while(m_videoRunning)
+    {
+        //        std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_CLASSIFIER_INTERVAL));
+        m_workAvailableSema.wait();
+        
+        QVideoFrame frame;
+        
+        if(m_video_frame_queue.pop(frame))
+        {
+            QImage image = imageFromVideoFrame(frame);
+            cv::Mat cvImg = QImage2Mat(image);
+            emolib::InputImage* input = m_image_builder.build(cvImg);
+            
+            std::vector<float> results = m_classifier.classify_vec(input, nullptr);
+            for(int i = 0; i < results.size(); i++)
+            {
+                m_emotionSet->replace(i, results[i]);
+            }
+        }
+    }
+    
+    qDebug() << "Classifier Thread Done!";
+    m_classifierThreadDoneSema.notify();
 }
 
 void MainWindow::selectFileAudioPage()
@@ -503,39 +575,6 @@ bool MainWindow::loadVideo(const QString& path)
     return true;
 }
 
-static QImage imageFromVideoFrame(const QVideoFrame& buffer)
-{
-    QImage img;
-    QVideoFrame frame(buffer);  // make a copy we can call map (non-const) on
-    frame.map(QAbstractVideoBuffer::ReadOnly);
-    QImage::Format imageFormat = QVideoFrame::imageFormatFromPixelFormat(
-                                                                         frame.pixelFormat());
-    // BUT the frame.pixelFormat() is QVideoFrame::Format_Jpeg, and this is
-    // mapped to QImage::Format_Invalid by
-    // QVideoFrame::imageFormatFromPixelFormat
-    if (imageFormat != QImage::Format_Invalid) {
-        img = QImage(frame.bits(),
-                     frame.width(),
-                     frame.height(),
-                     // frame.bytesPerLine(),
-                     imageFormat);
-    } else {
-        // e.g. JPEG
-        int nbytes = frame.mappedBytes();
-        img = QImage::fromData(frame.bits(), nbytes);
-    }
-    frame.unmap();
-    return img;
-}
-
-static cv::Mat QImage2Mat(QImage const& src)
-{
-    cv::Mat tmp(src.height(),src.width(),CV_8UC4,(uchar*)src.bits(),src.bytesPerLine());
-    cv::Mat result; // deep copy just in case (my lack of knowledge with open cv)
-    cvtColor(tmp, result,CV_RGBA2RGB);
-    return result;
-}
-
 const int interval = 100;
 
 static int facial_counter = 0;
@@ -561,21 +600,27 @@ void MainWindow::processFrame(QVideoFrame frame)
 //
 //    facial_counter++;
     
-    if(facial_counter > interval)
-    {
-        facial_counter = 0;
-        QImage image = imageFromVideoFrame(frame);
-        cv::Mat cvImg = QImage2Mat(image);
-        emolib::InputImage* input = m_image_builder.build(cvImg);
-        
-        std::vector<float> results = m_classifier.classify_vec(input, nullptr);
-        for(int i = 0; i < results.size(); i++)
-        {
-            m_emotionSet->replace(i, results[i]);
-        }
-    }
+//    if(facial_counter > interval)
+//    {
+//        facial_counter = 0;
+//        QImage image = imageFromVideoFrame(frame);
+//        cv::Mat cvImg = QImage2Mat(image);
+//        emolib::InputImage* input = m_image_builder.build(cvImg);
+//
+//        std::vector<float> results = m_classifier.classify_vec(input, nullptr);
+//        for(int i = 0; i < results.size(); i++)
+//        {
+//            m_emotionSet->replace(i, results[i]);
+//        }
+//    }
+//
+//    facial_counter++;
     
-    facial_counter++;
+    if(m_video_frame_queue.empty())
+    {
+        m_video_frame_queue.push(frame);
+        m_workAvailableSema.notify();
+    }
 }
 
 void MainWindow::processBuffer(QAudioBuffer buffer)

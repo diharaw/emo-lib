@@ -19,6 +19,7 @@
 #include <input_image_builder.hpp>
 #include <input_audio_builder.hpp>
 #include <thread_safe_queue.hpp>
+#include <semaphore.hpp>
 #include <thread>
 
 class WavFile;
@@ -59,6 +60,10 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
+    
+    void createVideoThread();
+    void stopVideoThread();
+    void classifierLoop();
 
 private slots:
     void on_m_cmbClassifier_currentIndexChanged(int index);
@@ -129,6 +134,10 @@ private:
     emolib::InputAudioBuilder m_audio_builder;
     emolib::ThreadSafeQueue<QVideoFrame> m_video_frame_queue;
     emolib::ThreadSafeQueue<EmotionResult> m_result_queue;
+    Semaphore m_workAvailableSema;
+    Semaphore m_classifierThreadDoneSema;
+    std::thread m_classifierThread;
+    bool m_videoRunning = true;
 };
 
 #endif // MAINWINDOW_H
