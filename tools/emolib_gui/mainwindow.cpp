@@ -101,6 +101,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_inputTypes << "Webcam/Mic" << "Files";
     ui->m_cmbInput->addItems(m_inputTypes);
+    ui->m_cmbInput->setCurrentIndex(1);
+    
     choosePage();
     
     initializeClassifiers();
@@ -541,22 +543,38 @@ static int speech_counter = 0;
 
 void MainWindow::processFrame(QVideoFrame frame)
 {
-    if(facial_counter > interval && m_classification_future.isFinished())
+//    if(facial_counter > interval && m_classification_future.isFinished())
+//    {
+//        if(m_classification_future.results().size() > 0)
+//        {
+//            for(int i = 0; i < m_classification_future.result().size(); i++)
+//            {
+//                m_emotionSet->replace(i, m_classification_future.result()[i]);
+//            }
+//        }
+//        facial_counter = 0;
+//        QImage image = imageFromVideoFrame(frame);
+//        cv::Mat cvImg = QImage2Mat(image);
+//        emolib::InputImage* input = m_image_builder.build(cvImg);
+//        m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, input, nullptr);
+//    }
+//
+//    facial_counter++;
+    
+    if(facial_counter > interval)
     {
-        if(m_classification_future.results().size() > 0)
-        {
-            for(int i = 0; i < m_classification_future.result().size(); i++)
-            {
-                m_emotionSet->replace(i, m_classification_future.result()[i]);
-            }
-        }
         facial_counter = 0;
         QImage image = imageFromVideoFrame(frame);
         cv::Mat cvImg = QImage2Mat(image);
         emolib::InputImage* input = m_image_builder.build(cvImg);
-        m_classification_future = QtConcurrent::run(&m_classifier, &emolib::Classifier::classify_vec, input, nullptr);
+        
+        std::vector<float> results = m_classifier.classify_vec(input, nullptr);
+        for(int i = 0; i < results.size(); i++)
+        {
+            m_emotionSet->replace(i, results[i]);
+        }
     }
-
+    
     facial_counter++;
 }
 

@@ -18,6 +18,8 @@
 #include <classifier.hpp>
 #include <input_image_builder.hpp>
 #include <input_audio_builder.hpp>
+#include <thread_safe_queue.hpp>
+#include <thread>
 
 class WavFile;
 
@@ -40,6 +42,11 @@ QT_END_NAMESPACE
 class QMediaRecorder;
 class QAudioRecorder;
 class QMediaPlayer;
+
+struct EmotionResult
+{
+    float values[6];
+};
 
 namespace Ui {
 class MainWindow;
@@ -120,6 +127,8 @@ private:
     emolib::Classifier        m_classifier;
     emolib::InputImageBuilder m_image_builder;
     emolib::InputAudioBuilder m_audio_builder;
+    emolib::ThreadSafeQueue<QVideoFrame> m_video_frame_queue;
+    emolib::ThreadSafeQueue<EmotionResult> m_result_queue;
 };
 
 #endif // MAINWINDOW_H
