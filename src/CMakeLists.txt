@@ -22,6 +22,7 @@ set(EMO_LIB_HEADERS "${PROJECT_SOURCE_DIR}/include/classifier.hpp"
                     "${PROJECT_SOURCE_DIR}/include/caffe_classifier.hpp"
                     "${PROJECT_SOURCE_DIR}/include/memory_stream.hpp"
                     "${PROJECT_SOURCE_DIR}/include/thread_safe_queue.hpp"
+                    "${PROJECT_SOURCE_DIR}/include/semaphore.hpp"
                     "${PROJECT_SOURCE_DIR}/include/common.hpp"
                     "${PROJECT_SOURCE_DIR}/include/macros.hpp")
 
